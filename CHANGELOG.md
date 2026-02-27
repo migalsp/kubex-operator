@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/migalsp/kubex-operator/compare/v1.0.1...v1.1.0) (2026-02-27)
+
+
+### Features
+
+* Display requested resource allocation alongside actual usage for cluster and node metrics on the dashboard. ([2d05a82](https://github.com/migalsp/kubex-operator/commit/2d05a82ca66418fc906b54f5402af390c89b144a))
+
+
+### Bug Fixes
+
+* init release issues ([cc1ea33](https://github.com/migalsp/kubex-operator/commit/cc1ea339bec416a40eb0271620deefeb37e888ae))
+
 ## [1.0.1](https://github.com/migalsp/kubex-operator/compare/v1.0.0...v1.0.1) (2026-02-27)
 
 
