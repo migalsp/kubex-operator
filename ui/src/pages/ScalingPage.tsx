@@ -466,15 +466,21 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
                   <ConfigCard key={config.metadata.name} config={config} />
                 ))}
                 {namespaces.filter(ns => !groups.some(g => g.spec.namespaces.includes(ns)) && !policies.some(p => p.spec.targetNamespace === ns)).map(ns => (
-                  <div key={ns} className="bg-white border border-dashed border-slate-200 rounded-2xl p-5 flex items-center justify-between group hover:border-indigo-300 hover:shadow-sm transition-all cursor-pointer"
-                    onClick={() => handleCreateIndividualConfig(ns)}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
+                  <div key={ns} className="bg-white border border-dashed border-slate-200 rounded-2xl p-4 flex items-center justify-between group hover:border-indigo-300 hover:shadow-sm transition-all cursor-pointer"
+                    onClick={() => handleCreateIndividualConfig(ns)}
+                    title="Click to enable scaling control for this namespace">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors shrink-0">
                         <Layers size={20} />
                       </div>
-                      <span className="font-bold text-slate-400 group-hover:text-slate-700 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">{ns}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-slate-400 group-hover:text-slate-700 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">{ns}</span>
+                        <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider group-hover:text-indigo-400 transition-colors">Unmanaged</span>
+                      </div>
                     </div>
-                    <Plus size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors shrink-0" />
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 group-hover:bg-indigo-50 transition-colors shrink-0">
+                      <Plus size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                    </div>
                   </div>
                 ))}
               </div>
