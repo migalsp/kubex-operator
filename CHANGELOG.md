@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/migalsp/kubex-operator/compare/v1.0.0...v1.0.1) (2026-02-27)
+
+
+### Bug Fixes
+
+* split docker and helm registry paths ([27bda6a](https://github.com/migalsp/kubex-operator/commit/27bda6a62788ae42c3b5edc70ea02e341ca7913c))
+
 ## 1.0.0 (2026-02-27)
 
 
