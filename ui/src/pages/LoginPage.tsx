@@ -51,7 +51,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Kubex</h1>
-          <p className="text-slate-400 mt-2 text-sm">FinOps Platform Authentication</p>
+          <p className="text-slate-400 mt-2 text-sm">FinOps Platform UI</p>
         </div>
 
         {/* Login Card */}
