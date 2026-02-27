@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "kubex-operator.serviceAccountName" . }}
+  labels:
+    {{- include "kubex-operator.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kubex-operator.fullname" . }}-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/log
+  - namespaces
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
+- apiGroups:
+  - finops.kubex.io
+  resources:
+  - namespacefinops
+  - scalinggroups
+  - scalingconfigs
+  - namespaceoptimizations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - finops.kubex.io
+  resources:
+  - namespacefinops/finalizers
+  - scalinggroups/finalizers
+  - scalingconfigs/finalizers
+  - namespaceoptimizations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - finops.kubex.io
+  resources:
+  - namespacefinops/status
+  - scalinggroups/status
+  - scalingconfigs/status
+  - namespaceoptimizations/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubex-operator.fullname" . }}-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kubex-operator.fullname" . }}-manager-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "kubex-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

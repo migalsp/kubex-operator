@@ -1,0 +1,9 @@
+apiVersion: finops.kubex.io/v1
+kind: ScalingGroup
+metadata:
+  labels:
+    app.kubernetes.io/name: kubex
+    app.kubernetes.io/managed-by: kustomize
+  name: scalinggroup-sample
+spec:
+  # TODO(user): Add fields here

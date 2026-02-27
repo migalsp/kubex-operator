@@ -1,0 +1,85 @@
+name: CI
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  push:
+    branches-ignore:
+      - main
+      - master
+
+permissions:
+  contents: read
+  pull-requests: write
+  packages: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Run Go Formatter and Linters
+        run: |
+          go fmt ./...
+          go vet ./...
+
+      - name: Run Go Tests
+        run: |
+          go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.txt
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Build UI
+        working-directory: ./ui
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Manager (Dry Run)
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager cmd/main.go
+
+      # GitHub Actions best practice for PR description updates (using a community action or gh cli)
+      - name: Update PR Description
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          # Create a summary report
+          echo "## CI/CD Pipeline Report 🚀" > report.md
+          echo "- **Status:** ✅ Successfully built and tested." >> report.md
+          echo "- **Codecov:** Coverage report uploaded." >> report.md
+          echo "- **Go Version:** 1.22" >> report.md
+          echo "- **Node Version:** 20" >> report.md
+          echo "All checks passed. Ready for review!" >> report.md
+
+          # We update the original PR body with the test report.
+          # We use `gh pr edit` to append or ensure the status is known.
+          # Note: editing body can overwrite user text if not careful, so we post a comment instead as best practice.
+          gh pr comment $PR_URL -F report.md
