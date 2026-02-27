@@ -1,0 +1,17 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "extra-files": [
+        "deploy/helm/kubex-operator/Chart.yaml",
+        "deploy/helm/kubex-operator/values.yaml",
+        "internal/api/openapi.yaml",
+        {
+          "type": "json",
+          "path": "ui/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}
