@@ -54,8 +54,8 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
   const [sortField, setSortField] = useState<keyof PodDetail | 'cpuUsage' | 'memUsage' | 'cpuReq' | 'cpuLim' | 'memReq' | 'memLim'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  const fetchPods = () => {
-    setLoading(true);
+  const fetchPods = (silent = false) => {
+    if (!silent) setLoading(true);
     fetch(`/api/namespaces/${namespace}/pods`)
       .then(res => res.json())
       .then(data => {
@@ -64,9 +64,11 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
       })
       .catch(err => {
         console.error(err);
-        setError("Failed to load pod details.");
+        if (!silent) setError("Failed to load pod details.");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!silent) setLoading(false);
+      });
   }
 
   const fetchConfig = () => {
@@ -90,7 +92,11 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
     fetchPods()
     fetchConfig()
     fetchOptimization()
-    const interval = setInterval(fetchPods, 10000)
+    const interval = setInterval(() => {
+      fetchPods(true)
+      fetchConfig()
+      fetchOptimization()
+    }, 10000)
     return () => clearInterval(interval)
   }, [namespace])
 
