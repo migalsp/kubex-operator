@@ -40,7 +40,7 @@ export default function NamespaceCard({ namespace, insights = [], onClick }: Nam
   const [history, setHistory] = useState<any[]>([])
   const [optimization, setOptimization] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState<'optimize' | 'revert' | null>(null)
 
   const fetchOptimization = () => {
     fetch(`/api/namespaces/${namespace}/optimization`)
@@ -88,16 +88,30 @@ export default function NamespaceCard({ namespace, insights = [], onClick }: Nam
     e.stopPropagation()
     if (!window.confirm(`Optimize ${namespace}? This will adjust requests/limits based on 1h average usage (+30%/50% margin).`)) return
     
-    setActionLoading(true)
+    setActionLoading('optimize')
+    // Optimistically add an "Optimizing" tag to insights if we want, but the spinner is usually enough
     try {
       const res = await fetch(`/api/namespaces/${namespace}/optimize`, { method: 'POST' })
       if (!res.ok) throw new Error('Optimization failed')
+      
       fetchOptimization()
       fetchData()
+      
+      let attempts = 0;
+      const fastPoll = setInterval(() => {
+        fetchOptimization()
+        fetchData()
+        attempts++;
+        if (attempts > 5) {
+          clearInterval(fastPoll);
+          setActionLoading(null)
+        }
+      }, 2000);
+      setTimeout(() => setActionLoading(null), 12000);
+
     } catch (err) {
       alert("Failed to optimize: " + err)
-    } finally {
-      setActionLoading(false)
+      setActionLoading(null)
     }
   }
 
@@ -105,16 +119,29 @@ export default function NamespaceCard({ namespace, insights = [], onClick }: Nam
     e.stopPropagation()
     if (!window.confirm(`Revert optimization for ${namespace}? This will restore the original resource values.`)) return
 
-    setActionLoading(true)
+    setActionLoading('revert')
     try {
       const res = await fetch(`/api/namespaces/${namespace}/revert`, { method: 'POST' })
       if (!res.ok) throw new Error('Revert failed')
+      
       fetchOptimization()
       fetchData()
+      
+      let attempts = 0;
+      const fastPoll = setInterval(() => {
+        fetchOptimization()
+        fetchData()
+        attempts++;
+        if (attempts > 5) {
+          clearInterval(fastPoll);
+          setActionLoading(null)
+        }
+      }, 2000);
+      setTimeout(() => setActionLoading(null), 12000);
+
     } catch (err) {
       alert("Failed to revert: " + err)
-    } finally {
-      setActionLoading(false)
+      setActionLoading(null)
     }
   }
 
@@ -294,24 +321,32 @@ export default function NamespaceCard({ namespace, insights = [], onClick }: Nam
         </div>
 
         <div className="flex gap-2">
-          {optimization?.active ? (
+          {(optimization?.active && actionLoading !== 'optimize') || actionLoading === 'revert' ? (
             <button 
               onClick={handleRevert}
-              disabled={actionLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors font-bold uppercase tracking-tight"
+              disabled={actionLoading !== null}
+              className={`flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors font-bold uppercase tracking-tight ${actionLoading !== null ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              <RotateCcw size={14} />
-              {actionLoading ? 'reverting...' : 'Revert'}
+              {actionLoading === 'revert' ? (
+                 <div className="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-500 rounded-full animate-spin"></div>
+              ) : (
+                <RotateCcw size={14} />
+              )}
+              {actionLoading === 'revert' ? 'Reverting...' : 'Revert'}
             </button>
           ) : (
-            insights.some(i => i.includes('Overprovisioned')) && (
+            (insights.some(i => i.includes('Overprovisioned')) || actionLoading === 'optimize') && (
               <button 
                 onClick={handleOptimize}
-                disabled={actionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors font-bold uppercase tracking-tight"
+                disabled={actionLoading !== null}
+                className={`flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors font-bold uppercase tracking-tight ${actionLoading !== null ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                <Zap size={14} fill="currentColor" />
-                {actionLoading ? 'optimizing...' : 'Optimize'}
+                {actionLoading === 'optimize' ? (
+                   <div className="w-3.5 h-3.5 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin"></div>
+                ) : (
+                  <Zap size={14} fill="currentColor" />
+                )}
+                {actionLoading === 'optimize' ? 'Optimizing...' : 'Optimize'}
               </button>
             )
           )}

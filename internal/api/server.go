@@ -794,32 +794,48 @@ func (s *Server) handleNamespaceOptimize(w http.ResponseWriter, r *http.Request,
 		currentLimCPU := d.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().AsApproximateFloat64()
 		currentLimMem := float64(d.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value())
 
-		// Safety floor: 100m (0.1) CPU, 64Mi RAM
-		cpuFloor := 0.1
+		// Safety floor: 20m CPU, 64Mi RAM
+		cpuFloor := 0.02
 		memFloor := 64.0 * 1024 * 1024
 
-		if newReqCPU < cpuFloor && currentReqCPU >= cpuFloor {
-			newReqCPU = cpuFloor
-		} else if newReqCPU < currentReqCPU && currentReqCPU < cpuFloor {
-			newReqCPU = currentReqCPU // Don't decrease further if already below floor
+		if newReqCPU < cpuFloor {
+			if currentReqCPU >= cpuFloor {
+				newReqCPU = cpuFloor
+			} else {
+				// Already manually tuned below floor, keep it
+				newReqCPU = currentReqCPU
+			}
+		}
+		if newLimCPU < cpuFloor*1.5 {
+			if currentLimCPU >= cpuFloor*1.5 {
+				newLimCPU = cpuFloor * 1.5
+			} else {
+				newLimCPU = currentLimCPU
+			}
 		}
 
-		if newLimCPU < cpuFloor && currentLimCPU >= cpuFloor {
-			newLimCPU = cpuFloor
-		} else if newLimCPU < currentLimCPU && currentLimCPU < cpuFloor {
-			newLimCPU = currentLimCPU
+		if newReqMem < memFloor {
+			if currentReqMem >= memFloor {
+				newReqMem = memFloor
+			} else {
+				// Already manually tuned below floor, keep it
+				newReqMem = currentReqMem
+			}
+		}
+		if newLimMem < memFloor*1.5 {
+			if currentLimMem >= memFloor*1.5 {
+				newLimMem = memFloor * 1.5
+			} else {
+				newLimMem = currentLimMem
+			}
 		}
 
-		if newReqMem < memFloor && currentReqMem >= memFloor {
-			newReqMem = memFloor
-		} else if newReqMem < currentReqMem && currentReqMem < memFloor {
-			newReqMem = currentReqMem
+		// Guarantee limits are always >= requests
+		if newLimCPU < newReqCPU {
+			newLimCPU = newReqCPU
 		}
-
-		if newLimMem < memFloor && currentLimMem >= memFloor {
-			newLimMem = memFloor
-		} else if newLimMem < currentLimMem && currentLimMem < memFloor {
-			newLimMem = currentLimMem
+		if newLimMem < newReqMem {
+			newLimMem = newReqMem
 		}
 
 		orig := finopsv1.ResourceValues{}
@@ -882,32 +898,48 @@ func (s *Server) handleNamespaceOptimize(w http.ResponseWriter, r *http.Request,
 		currentLimCPU := d.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().AsApproximateFloat64()
 		currentLimMem := float64(d.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value())
 
-		// Safety floor: 100m (0.1) CPU, 64Mi RAM
-		cpuFloor := 0.1
+		// Safety floor: 20m CPU, 64Mi RAM
+		cpuFloor := 0.02
 		memFloor := 64.0 * 1024 * 1024
 
-		if newReqCPU < cpuFloor && currentReqCPU >= cpuFloor {
-			newReqCPU = cpuFloor
-		} else if newReqCPU < currentReqCPU && currentReqCPU < cpuFloor {
-			newReqCPU = currentReqCPU
+		if newReqCPU < cpuFloor {
+			if currentReqCPU >= cpuFloor {
+				newReqCPU = cpuFloor
+			} else {
+				// Already manually tuned below floor, keep it
+				newReqCPU = currentReqCPU
+			}
+		}
+		if newLimCPU < cpuFloor*1.5 {
+			if currentLimCPU >= cpuFloor*1.5 {
+				newLimCPU = cpuFloor * 1.5
+			} else {
+				newLimCPU = currentLimCPU
+			}
 		}
 
-		if newLimCPU < cpuFloor && currentLimCPU >= cpuFloor {
-			newLimCPU = cpuFloor
-		} else if newLimCPU < currentLimCPU && currentLimCPU < cpuFloor {
-			newLimCPU = currentLimCPU
+		if newReqMem < memFloor {
+			if currentReqMem >= memFloor {
+				newReqMem = memFloor
+			} else {
+				// Already manually tuned below floor, keep it
+				newReqMem = currentReqMem
+			}
+		}
+		if newLimMem < memFloor*1.5 {
+			if currentLimMem >= memFloor*1.5 {
+				newLimMem = memFloor * 1.5
+			} else {
+				newLimMem = currentLimMem
+			}
 		}
 
-		if newReqMem < memFloor && currentReqMem >= memFloor {
-			newReqMem = memFloor
-		} else if newReqMem < currentReqMem && currentReqMem < memFloor {
-			newReqMem = currentReqMem
+		// Guarantee limits are always >= requests
+		if newLimCPU < newReqCPU {
+			newLimCPU = newReqCPU
 		}
-
-		if newLimMem < memFloor && currentLimMem >= memFloor {
-			newLimMem = memFloor
-		} else if newLimMem < currentLimMem && currentLimMem < memFloor {
-			newLimMem = currentLimMem
+		if newLimMem < newReqMem {
+			newLimMem = newReqMem
 		}
 
 		orig := finopsv1.ResourceValues{}

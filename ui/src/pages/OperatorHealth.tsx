@@ -37,6 +37,7 @@ export default function OperatorHealth() {
   const [logs, setLogs] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [autoScroll, setAutoScroll] = useState(true)
   const logEndRef = useRef<HTMLDivElement>(null)
 
   const fetchHealth = async () => {
@@ -80,8 +81,10 @@ export default function OperatorHealth() {
   }, [])
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [logs])
+    if (autoScroll) {
+      logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [logs, autoScroll])
 
   if (loading) {
     return (
@@ -262,13 +265,24 @@ export default function OperatorHealth() {
             <Terminal size={14} />
             <span className="text-xs font-mono font-medium">Internal Operator Logs (Trailing 100)</span>
           </div>
-          <a 
-            href="/api/operator/logs/download" 
-            className="flex items-center gap-2 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs transition-colors"
-          >
-            <Download size={12} />
-            Download full logs
-          </a>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-xs font-mono text-slate-400 cursor-pointer hover:text-white transition-colors">
+              <input 
+                type="checkbox" 
+                checked={autoScroll} 
+                onChange={(e) => setAutoScroll(e.target.checked)} 
+                className="accent-slate-500 rounded-sm bg-slate-800 border-slate-600 w-3 h-3" 
+              />
+              Auto-scroll
+            </label>
+            <a 
+              href="/api/operator/logs/download" 
+              className="flex items-center gap-2 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs transition-colors"
+            >
+              <Download size={12} />
+              Download full logs
+            </a>
+          </div>
         </div>
         <div className="flex-1 overflow-auto p-6 font-mono text-[13px] text-slate-300 whitespace-pre">
           {logs || 'No logs available...'}

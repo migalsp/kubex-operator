@@ -53,9 +53,10 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
   const [isEditingConfig, setIsEditingConfig] = useState(false)
   const [sortField, setSortField] = useState<keyof PodDetail | 'cpuUsage' | 'memUsage' | 'cpuReq' | 'cpuLim' | 'memReq' | 'memLim'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [isScaling, setIsScaling] = useState(false)
 
-  const fetchPods = () => {
-    setLoading(true);
+  const fetchPods = (silent = false) => {
+    if (!silent) setLoading(true);
     fetch(`/api/namespaces/${namespace}/pods`)
       .then(res => res.json())
       .then(data => {
@@ -64,9 +65,11 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
       })
       .catch(err => {
         console.error(err);
-        setError("Failed to load pod details.");
+        if (!silent) setError("Failed to load pod details.");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!silent) setLoading(false);
+      });
   }
 
   const fetchConfig = () => {
@@ -90,12 +93,28 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
     fetchPods()
     fetchConfig()
     fetchOptimization()
-    const interval = setInterval(fetchPods, 10000)
+    const interval = setInterval(() => {
+      fetchPods(true)
+      fetchConfig()
+      fetchOptimization()
+    }, 10000)
     return () => clearInterval(interval)
   }, [namespace])
 
   const handleManualScale = async (active: boolean) => {
-    if (!config) return;
+    if (!config || isScaling) return;
+    setIsScaling(true);
+    
+    // Optimistic UI Update
+    const previousPhase = config.status?.phase;
+    setConfig({
+      ...config,
+      status: {
+        ...config.status,
+        phase: 'Scaling...'
+      }
+    });
+
     try {
       await fetch(`/api/scaling/configs/${config.metadata.name}/manual`, {
         method: 'POST',
@@ -104,9 +123,32 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
       });
       fetchConfig();
       setError(null);
+      
+      // Fast polling setup to catch the result quickly
+      let attempts = 0;
+      const fastPoll = setInterval(() => {
+        fetchPods(true);
+        fetchConfig();
+        attempts++;
+        if (attempts > 10) { // Keep fast polling for ~20 seconds maximum
+          clearInterval(fastPoll);
+          setIsScaling(false);
+        }
+      }, 2000);
+
+      // We clear the isScaling explicitly when the phase actually changes from 'Scaling...' inside fetchConfig,
+      // but we need a fallback timeout here just in case.
+      setTimeout(() => setIsScaling(false), 22000);
+
     } catch (err) {
       console.error("Error during manual scale:", err);
       setError("Failed to apply manual scaling. Please check the console for details.");
+      // Revert optimistic update on failure
+      setConfig({
+        ...config,
+        status: { ...config.status, phase: previousPhase }
+      });
+      setIsScaling(false);
     }
   };
 
@@ -235,7 +277,9 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
               Scaling Status
               {config && (
                 <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest ${
-                  config.status?.phase === 'ScaledUp' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                  config.status?.phase === 'ScaledUp' ? 'bg-emerald-500/20 text-emerald-400' : 
+                  config.status?.phase === 'Scaling...' ? 'bg-blue-500/20 text-blue-400 animate-pulse' :
+                  'bg-amber-500/20 text-amber-400'
                 }`}>
                   {config.status?.phase || 'Idle'}
                 </span>
@@ -253,15 +297,25 @@ export default function NamespaceDetails({ namespace, onBack }: NamespaceDetails
             <>
               <button 
                 onClick={() => handleManualScale(true)}
-                className={`p-3 rounded-xl transition-all ${config.status?.phase === 'ScaledUp' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                disabled={isScaling}
+                className={`p-3 rounded-xl transition-all ${config.status?.phase === 'ScaledUp' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-800 text-slate-400 hover:text-white'} ${isScaling ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <Play size={20} fill={config.status?.phase === 'ScaledUp' ? "currentColor" : "none"} />
+                {isScaling && config.status?.phase === 'Scaling...' ? (
+                   <div className="w-5 h-5 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin"></div>
+                ) : (
+                  <Play size={20} fill={config.status?.phase === 'ScaledUp' ? "currentColor" : "none"} />
+                )}
               </button>
               <button 
                 onClick={() => handleManualScale(false)}
-                className={`p-3 rounded-xl transition-all ${config.status?.phase === 'ScaledDown' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                disabled={isScaling}
+                className={`p-3 rounded-xl transition-all ${config.status?.phase === 'ScaledDown' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-800 text-slate-400 hover:text-white'} ${isScaling ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <Square size={20} fill={config.status?.phase === 'ScaledDown' ? "currentColor" : "none"} />
+                {isScaling && config.status?.phase === 'Scaling...' ? (
+                   <div className="w-5 h-5 border-2 border-slate-300 border-t-rose-500 rounded-full animate-spin"></div>
+                ) : (
+                  <Square size={20} fill={config.status?.phase === 'ScaledDown' ? "currentColor" : "none"} />
+                )}
               </button>
               <button 
                 onClick={() => setIsEditingConfig(true)}

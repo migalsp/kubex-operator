@@ -70,6 +70,7 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
   const [selectedNS, setSelectedNS] = useState<string[]>([]);
   const [deletingGroupName, setDeletingGroupName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isScalingMap, setIsScalingMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchData();
@@ -105,6 +106,22 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
 
   const handleUpsertGroup = async () => {
     if (!newGroupName) return;
+    
+    // Auto-sanitize for the user: lowercase, spaces/invalid replaced by hyphens, multiple hyphens collapsed
+    const sanitizedGroupUrlName = newGroupName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    // Validate Kubernetes naming convention (RFC 1123) after sanitization
+    const k8sNameRegex = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+    if (!k8sNameRegex.test(sanitizedGroupUrlName)) {
+      setError('Invalid group name format. Must start and end with an alphanumeric character.');
+      return;
+    }
+
     if (selectedNS.length === 0) {
       setError('Please select at least one namespace for the group.');
       return;
@@ -119,7 +136,7 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          metadata: { name: newGroupName },
+          metadata: { name: sanitizedGroupUrlName },
           spec: { 
             ...(editingGroup?.spec || {}),
             category: newGroupCategory, 
@@ -145,6 +162,24 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
   };
 
   const handleManualScale = async (type: 'group' | 'config', name: string, active: boolean) => {
+    const key = `${type}-${name}`;
+    if (isScalingMap[key]) return;
+    
+    setIsScalingMap(prev => ({ ...prev, [key]: true }));
+
+    // Optimistic UI update
+    if (type === 'group') {
+      setGroups(prev => prev.map((g: any) => g.metadata.name === name ? {
+        ...g,
+        status: { ...(g.status || {}), phase: 'Scaling...', lastAction: g.status?.lastAction || '' }
+      } : g));
+    } else {
+      setPolicies(prev => prev.map(p => p.metadata.name === name ? {
+        ...p,
+        status: { ...(p.status || {}), phase: 'Scaling...', lastAction: p.status?.lastAction || '' }
+      } : p));
+    }
+
     const endpoint = type === 'group' ? `/api/scaling/groups/${name}/manual` : `/api/scaling/configs/${name}/manual`;
     try {
       await fetch(endpoint, {
@@ -152,12 +187,24 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active })
       });
-      // Immediate refresh + delayed refresh for status to propagate (silent)
       fetchData(true);
-      setTimeout(() => fetchData(true), 2000);
-      setTimeout(() => fetchData(true), 5000);
+      
+      let attempts = 0;
+      const fastPoll = setInterval(() => {
+        fetchData(true);
+        attempts++;
+        if (attempts > 10) {
+          clearInterval(fastPoll);
+          setIsScalingMap(prev => ({ ...prev, [key]: false }));
+        }
+      }, 2000);
+      
+      setTimeout(() => setIsScalingMap(prev => ({ ...prev, [key]: false })), 22000);
+
     } catch (err) {
       console.error("Failed to trigger scaling", err);
+      setIsScalingMap(prev => ({ ...prev, [key]: false }));
+      fetchData(true); // Revert optimistic UI on failure
     }
   };
 
@@ -262,11 +309,25 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
         </div>
         <div className="flex items-center gap-1">
           <button onClick={(e) => { e.stopPropagation(); handleManualScale('group', group.metadata.name, true); }}
-            className={`p-1.5 rounded-lg transition-colors ${group.status?.phase === 'ScaledUp' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
-            title="Scale Up"><Play size={14} fill={group.status?.phase === 'ScaledUp' ? "currentColor" : "none"} /></button>
+            disabled={isScalingMap[`group-${group.metadata.name}`]}
+            className={`p-1.5 rounded-lg transition-colors ${group.status?.phase === 'ScaledUp' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'} ${isScalingMap[`group-${group.metadata.name}`] ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Scale Up">
+              {isScalingMap[`group-${group.metadata.name}`] && group.status?.phase === 'Scaling...' ? (
+                <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin"></div>
+              ) : (
+                <Play size={14} fill={group.status?.phase === 'ScaledUp' ? "currentColor" : "none"} />
+              )}
+          </button>
           <button onClick={(e) => { e.stopPropagation(); handleManualScale('group', group.metadata.name, false); }}
-            className={`p-1.5 rounded-lg transition-colors ${group.status?.phase === 'ScaledDown' ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
-            title="Scale Down"><Square size={14} fill={group.status?.phase === 'ScaledDown' ? "currentColor" : "none"} /></button>
+            disabled={isScalingMap[`group-${group.metadata.name}`]}
+            className={`p-1.5 rounded-lg transition-colors ${group.status?.phase === 'ScaledDown' ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'} ${isScalingMap[`group-${group.metadata.name}`] ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Scale Down">
+              {isScalingMap[`group-${group.metadata.name}`] && group.status?.phase === 'Scaling...' ? (
+                <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-rose-500 rounded-full animate-spin"></div>
+              ) : (
+                <Square size={14} fill={group.status?.phase === 'ScaledDown' ? "currentColor" : "none"} />
+              )}
+          </button>
           <button onClick={(e) => { e.stopPropagation(); setEditingPolicy({ mode: 'schedule', name: group.metadata.name, spec: { ...group.spec } }); }}
           className="p-1.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-500 rounded-lg transition-colors" title="Availability Schedule">
           <CalendarClock size={14} /></button>
@@ -323,6 +384,7 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
       case 'ScalingDown': return { dot: 'bg-amber-400 animate-pulse', text: 'text-amber-500' };
       case 'PartlyScaled': return { dot: 'bg-amber-500', text: 'text-amber-600' };
       case 'OverriddenByGroup': return { dot: 'bg-indigo-300', text: 'text-indigo-500' };
+      case 'Scaling...': return { dot: 'bg-blue-400 animate-pulse', text: 'text-blue-500' };
       default: return { dot: 'bg-slate-300', text: 'text-slate-400' };
     }
   };
@@ -364,11 +426,25 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
       <div className="flex flex-col gap-1 items-end shrink-0" onClick={(e) => e.stopPropagation()}>
         <div className="flex gap-1">
           <button onClick={() => handleManualScale('config', config.metadata.name, true)}
-            className={`p-1.5 rounded-lg transition-colors ${config.status?.phase === 'ScaledUp' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
-            title="Scale Up"><Play size={14} fill={config.status?.phase === 'ScaledUp' ? "currentColor" : "none"} /></button>
+            disabled={isScalingMap[`config-${config.metadata.name}`]}
+            className={`p-1.5 rounded-lg transition-colors ${config.status?.phase === 'ScaledUp' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'} ${isScalingMap[`config-${config.metadata.name}`] ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Scale Up">
+              {isScalingMap[`config-${config.metadata.name}`] && config.status?.phase === 'Scaling...' ? (
+                <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin"></div>
+              ) : (
+                <Play size={14} fill={config.status?.phase === 'ScaledUp' ? "currentColor" : "none"} />
+              )}
+          </button>
           <button onClick={() => handleManualScale('config', config.metadata.name, false)}
-            className={`p-1.5 rounded-lg transition-colors ${config.status?.phase === 'ScaledDown' ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
-            title="Scale Down"><Square size={14} fill={config.status?.phase === 'ScaledDown' ? "currentColor" : "none"} /></button>
+            disabled={isScalingMap[`config-${config.metadata.name}`]}
+            className={`p-1.5 rounded-lg transition-colors ${config.status?.phase === 'ScaledDown' ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'} ${isScalingMap[`config-${config.metadata.name}`] ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Scale Down">
+              {isScalingMap[`config-${config.metadata.name}`] && config.status?.phase === 'Scaling...' ? (
+                <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-rose-500 rounded-full animate-spin"></div>
+              ) : (
+                <Square size={14} fill={config.status?.phase === 'ScaledDown' ? "currentColor" : "none"} />
+              )}
+          </button>
         </div>
         <div className="flex gap-1">
           <button onClick={() => setEditingPolicy({ mode: 'schedule', name: config.metadata.name, spec: config.spec })}
