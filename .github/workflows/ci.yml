@@ -91,4 +91,4 @@ jobs:
           gh pr comment $PR_URL -F report.md
 
           # Automatically add a 'CI Passed' label
-          gh pr edit $PR_URL --add-label "🟢 CI Passed"
+          gh pr edit $PR_URL --add-label "ci passed"
