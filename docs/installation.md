@@ -33,7 +33,7 @@ kubectl create namespace kubex
 Install the operator directly from the OCI registry. This eliminates the need to manually add `.tgz` repositories to your local Helm cache.
 
 ```bash
-helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator \
+helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator \
   --version v1.0.0 \
   --namespace kubex
 ```
@@ -56,7 +56,7 @@ Kubex ships with sane defaults, requiring minimal resource requests (100m CPU / 
 
 To view default values:
 ```bash
-helm show values oci://ghcr.io/migalsp/kubex-operator --version v1.0.0
+helm show values oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator --version v1.0.0
 ```
 
 **Common Overrides (`my-values.yaml`):**
@@ -81,7 +81,7 @@ resources:
 
 Apply your overrides during installation:
 ```bash
-helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator \
+helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator \
   --version v1.0.0 \
   --namespace kubex \
   -f my-values.yaml
@@ -108,7 +108,7 @@ Create an Ingress resource to route traffic to the `kubex-operator` service on p
 
 When a new version of Kubex is released, upgrading is seamless using Helm:
 ```bash
-helm upgrade kubex-operator oci://ghcr.io/migalsp/kubex-operator \
+helm upgrade kubex-operator oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator \
   --version v1.1.0 \
   --namespace kubex
 ```

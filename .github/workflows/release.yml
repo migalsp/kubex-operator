@@ -84,4 +84,4 @@ jobs:
       - name: Publish Helm Chart to GHCR
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
-          helm push ${{ env.CHART_FILE }} oci://ghcr.io/${{ github.repository }}
+          helm push ${{ env.CHART_FILE }} oci://ghcr.io/${{ github.repository }}/charts

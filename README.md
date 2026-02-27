@@ -26,7 +26,7 @@ Relying on static, guesswork-based CPU and memory limits across hundreds of micr
 Drop Kubex into your cluster in under a minute via Helm:
 
 ```bash
-helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator --version v1.0.0 -n kubex --create-namespace
+helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator --version v1.0.0 -n kubex --create-namespace
 ```
 
 Open the Dashboard:
