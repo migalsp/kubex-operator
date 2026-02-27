@@ -83,7 +83,7 @@ func (s *Server) handleScalingGroupActions(w http.ResponseWriter, r *http.Reques
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		
+
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			current := &finopsv1.ScalingGroup{}
 			if err := s.Client.Get(ctx, client.ObjectKey{Name: name, Namespace: operatorNs}, current); err != nil {
@@ -92,7 +92,7 @@ func (s *Server) handleScalingGroupActions(w http.ResponseWriter, r *http.Reques
 			current.Spec = updated.Spec
 			return s.Client.Update(ctx, current)
 		})
-		
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -32,7 +32,7 @@ func (e *Engine) IsActive(schedules []finopsv1.ScalingSchedule, manualActive *bo
 				continue
 			}
 			hasValidSchedule = true
-			
+
 			now := time.Now()
 			if s.Timezone != "" {
 				loc, err := time.LoadLocation(s.Timezone)
@@ -62,7 +62,7 @@ func (e *Engine) IsActive(schedules []finopsv1.ScalingSchedule, manualActive *bo
 				return true
 			}
 		}
-		
+
 		if hasValidSchedule {
 			return false // Valid schedules exist but none are active now
 		}
@@ -85,7 +85,7 @@ func parseMinutes(hhmm string) int {
 // It returns the updated map of original replicas and a boolean indicating if target state is fully reached.
 func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequence []string, exclusions []string, originalReplicas map[string]int32) (map[string]int32, bool, error) {
 	l := log.FromContext(ctx).WithValues("namespace", ns, "targetActive", active)
-	
+
 	if originalReplicas == nil {
 		originalReplicas = make(map[string]int32)
 	}
@@ -138,7 +138,7 @@ func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequen
 	// 5. Execute Scaling by priority groups (NON-BLOCKING)
 	for _, p := range priorities {
 		objs := priorityGroups[p]
-		
+
 		// First, check if this priority group is ALREADY ready.
 		// If so, we move to the next.
 		if e.isGroupReady(ctx, objs, active) {
@@ -149,7 +149,7 @@ func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequen
 		l.Info("Scaling priority group", "priority", p, "count", len(objs))
 		for _, obj := range objs {
 			key := fmt.Sprintf("%T/%s", obj, obj.GetName())
-			
+
 			// Target replicas for this object
 			var target int32
 			if !active {
@@ -183,7 +183,7 @@ func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequen
 			return originalReplicas, false, nil
 		}
 
-		// Group IS ready. 
+		// Group IS ready.
 		// If scaling UP, we can now safely remove from originals.
 		if active {
 			for _, obj := range objs {
@@ -200,7 +200,9 @@ func isExcluded(name string, exclusions []string) bool {
 	name = strings.TrimSpace(name)
 	for _, ex := range exclusions {
 		ex = strings.TrimSpace(ex)
-		if ex == "" { continue }
+		if ex == "" {
+			continue
+		}
 		if ex == "*" {
 			return true
 		}
@@ -263,22 +265,38 @@ func (e *Engine) isGroupReady(ctx context.Context, objs []client.Object, targetA
 			e.Client.Get(ctx, key, v)
 			if targetActive {
 				target := int32(0)
-				if v.Spec.Replicas != nil { target = *v.Spec.Replicas }
+				if v.Spec.Replicas != nil {
+					target = *v.Spec.Replicas
+				}
 				// If target is still 0, the deployment hasn't been scaled up yet → NOT ready
-				if target == 0 { return false }
-				if v.Status.ReadyReplicas < target { return false }
+				if target == 0 {
+					return false
+				}
+				if v.Status.ReadyReplicas < target {
+					return false
+				}
 			} else {
-				if v.Status.ReadyReplicas > 0 || v.Status.Replicas > 0 { return false }
+				if v.Status.ReadyReplicas > 0 || v.Status.Replicas > 0 {
+					return false
+				}
 			}
 		case *appsv1.StatefulSet:
 			e.Client.Get(ctx, key, v)
 			if targetActive {
 				target := int32(0)
-				if v.Spec.Replicas != nil { target = *v.Spec.Replicas }
-				if target == 0 { return false }
-				if v.Status.ReadyReplicas < target { return false }
+				if v.Spec.Replicas != nil {
+					target = *v.Spec.Replicas
+				}
+				if target == 0 {
+					return false
+				}
+				if v.Status.ReadyReplicas < target {
+					return false
+				}
 			} else {
-				if v.Status.ReadyReplicas > 0 || v.Status.Replicas > 0 { return false }
+				if v.Status.ReadyReplicas > 0 || v.Status.Replicas > 0 {
+					return false
+				}
 			}
 		}
 	}
@@ -294,9 +312,9 @@ func (e *Engine) ComputePhase(ctx context.Context, ns string, targetActive bool)
 	_ = e.Client.List(ctx, statefulSets, client.InNamespace(ns))
 
 	totalResources := 0
-	runningCount := 0  // spec.replicas > 0
-	zeroCount := 0     // spec.replicas == 0
-	readyCount := 0    // all pods ready (readyReplicas == spec.replicas)
+	runningCount := 0 // spec.replicas > 0
+	zeroCount := 0    // spec.replicas == 0
+	readyCount := 0   // all pods ready (readyReplicas == spec.replicas)
 
 	for _, d := range deployments.Items {
 		totalResources++

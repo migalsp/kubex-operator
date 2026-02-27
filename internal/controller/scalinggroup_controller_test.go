@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	finopsv1 "github.com/migalsp/kubex-operator/api/v1"
+	"github.com/migalsp/kubex-operator/internal/scaling"
 )
 
 var _ = Describe("ScalingGroup Controller", func() {
@@ -51,7 +52,9 @@ var _ = Describe("ScalingGroup Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-
+					Spec: finopsv1.ScalingGroupSpec{
+						Namespaces: []string{"default"},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -71,6 +74,7 @@ var _ = Describe("ScalingGroup Controller", func() {
 			controllerReconciler := &ScalingGroupReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Engine: &scaling.Engine{Client: k8sClient},
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

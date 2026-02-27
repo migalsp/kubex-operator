@@ -86,7 +86,9 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						break
 					}
 				}
-				if found { break }
+				if found {
+					break
+				}
 			}
 			if !found {
 				missing = append(missing, ns)
@@ -99,9 +101,9 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		stages = append(stages, managedNamespaces)
 	}
 
-	// Reverse stages for Scaling Up if needed? 
+	// Reverse stages for Scaling Up if needed?
 	// Usually sequence is defined for "Shutdown" order.
-	// User said: "first 1, then 3,4,5, then 2". 
+	// User said: "first 1, then 3,4,5, then 2".
 	// This usually means Up order. Let's assume sequence defines UP order, and reverse for DOWN.
 	if !targetActive {
 		for i, j := 0, len(stages)-1; i < j; i, j = i+1, j-1 {
@@ -111,19 +113,19 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	allReady := true
 	managedCount := 0
-	
+
 	// 4. Iterate over stages
 	for i, stage := range stages {
 		l.Info("Processing scaling stage", "stageIndex", i, "namespaces", stage)
-		
+
 		stageReady := true
 		for _, ns := range stage {
 			managedCount++
-			
+
 			// a. Fetch individual ScalingConfig for exclusions and sequence inheritance
 			var exclusions []string
 			var nsSequence []string
-			
+
 			// Try to find a ScalingConfig that manages this target namespace
 			configList := &finopsv1.ScalingConfigList{}
 			if err := r.List(ctx, configList, client.InNamespace(group.Namespace)); err == nil {
@@ -182,7 +184,7 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// 5. Update Status
 	group.Status.ManagedCount = managedCount
 	group.Status.LastAction = metav1.Now()
-	
+
 	if allReady {
 		if targetActive {
 			group.Status.Phase = "ScaledUp"

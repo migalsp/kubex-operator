@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	finopsv1 "github.com/migalsp/kubex-operator/api/v1"
+	"github.com/migalsp/kubex-operator/internal/scaling"
 )
 
 var _ = Describe("ScalingConfig Controller", func() {
@@ -71,6 +72,7 @@ var _ = Describe("ScalingConfig Controller", func() {
 			controllerReconciler := &ScalingConfigReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Engine: &scaling.Engine{Client: k8sClient},
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

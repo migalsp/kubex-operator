@@ -1,18 +1,10 @@
-<div align="center">
-  <img src="https://raw.githubusercontent.com/migalsp/kubex-operator/main/docs/assets/kubex_logo.png" alt="Kubex Logo" width="120" />
-</div>
+# Kubex
 
-<h1 align="center">Kubex</h1>
+**Stop wasting money on empty pods. Start optimizing your Kubernetes clusters.**
 
-<p align="center">
-  <b>Stop wasting money on empty pods. Start optimizing your Kubernetes clusters.</b>
-</p>
-
-<p align="center">
-  <a href="https://goreportcard.com/report/github.com/migalsp/kubex-operator"><img src="https://goreportcard.com/badge/github.com/migalsp/kubex-operator" alt="Go Report Card"></a>
-  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
-  <a href="https://app.codecov.io/gh/migalsp/kubex-operator"><img src="https://img.shields.io/codecov/c/github/migalsp/kubex-operator" alt="Coverage"></a>
-</p>
+[![Go Report Card](https://goreportcard.com/badge/github.com/migalsp/kubex-operator)](https://goreportcard.com/report/github.com/migalsp/kubex-operator)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Coverage](https://img.shields.io/codecov/c/github/migalsp/kubex-operator)](https://app.codecov.io/gh/migalsp/kubex-operator)
 
 **Kubex** is a lightweight Kubernetes Operator that automatically cuts cloud costs and simplifies resource management. It finds over-provisioned workloads, scales them down when not in use, and provides a beautiful real-time UI to manage it all.
 
@@ -50,6 +42,4 @@ kubectl port-forward svc/kubex-operator 8082:8082 -n kubex
 - [**User Guide & Custom Resources**](docs/user-guide.md)
 
 ---
-<p align="center">
-  If Kubex saves you money, please <b>⭐️ star this repository!</b>
-</p>
+If Kubex saves you money, please **⭐️ star this repository!**

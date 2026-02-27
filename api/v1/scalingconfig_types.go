@@ -47,9 +47,9 @@ type ScalingConfigSpec struct {
 	// +kubebuilder:validation:Required
 	TargetNamespace string `json:"targetNamespace"`
 
-	// Active is the manual override for scaling. 
-	// If null, the schedule is followed. 
-	// If true, the namespace is forced to Scale Up. 
+	// Active is the manual override for scaling.
+	// If null, the schedule is followed.
+	// If true, the namespace is forced to Scale Up.
 	// If false, the namespace is forced to Scale Down.
 	// +optional
 	Active *bool `json:"active,omitempty"`

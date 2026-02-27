@@ -76,7 +76,7 @@ func (r *ScalingConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// 2. Determine desired state
 	targetActive := r.Engine.IsActive(config.Spec.Schedules, config.Spec.Active)
-	
+
 	l.Info("Reconciling ScalingConfig", "targetNamespace", config.Spec.TargetNamespace, "targetActive", targetActive)
 
 	// 3. Execute Scaling if needed
