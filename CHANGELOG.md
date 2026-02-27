@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.0](https://github.com/migalsp/kubex-operator/compare/v1.1.0...v1.2.0) (2026-02-27)
+
+
+### Features
+
+* Implement optimistic UI updates, loading states, and fast polling for manual scaling actions across scaling pages. ([d1f5fbe](https://github.com/migalsp/kubex-operator/commit/d1f5fbeb767b6ebf4ed5f1381b13df94a85f9b50))
+* implement silent background data refreshing for namespace details and add an auto-scroll toggle for operator logs. ([0d6d2d4](https://github.com/migalsp/kubex-operator/commit/0d6d2d41077d220c5e5d7a7bdcdbc48ac9e53454))
+* Lower CPU safety floor from 100m to 20m, refactor resource floor application logic, and ensure limits are always greater than or equal to requests. ([7c3d441](https://github.com/migalsp/kubex-operator/commit/7c3d44134456fc3bd3243fffb8dfbcca633595d4))
+* sanitize and validate scaling group names for Kubernetes RFC 1123 compliance. ([a0646c8](https://github.com/migalsp/kubex-operator/commit/a0646c84ab6b45c2612938c837af50e1c496b9f8))
+
 ## [1.1.0](https://github.com/migalsp/kubex-operator/compare/v1.0.1...v1.1.0) (2026-02-27)
 
 
