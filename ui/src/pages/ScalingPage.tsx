@@ -106,6 +106,22 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
 
   const handleUpsertGroup = async () => {
     if (!newGroupName) return;
+    
+    // Auto-sanitize for the user: lowercase, spaces/invalid replaced by hyphens, multiple hyphens collapsed
+    const sanitizedGroupUrlName = newGroupName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    // Validate Kubernetes naming convention (RFC 1123) after sanitization
+    const k8sNameRegex = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+    if (!k8sNameRegex.test(sanitizedGroupUrlName)) {
+      setError('Invalid group name format. Must start and end with an alphanumeric character.');
+      return;
+    }
+
     if (selectedNS.length === 0) {
       setError('Please select at least one namespace for the group.');
       return;
@@ -120,7 +136,7 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          metadata: { name: newGroupName },
+          metadata: { name: sanitizedGroupUrlName },
           spec: { 
             ...(editingGroup?.spec || {}),
             category: newGroupCategory, 
