@@ -7,10 +7,12 @@ interface NodeData {
   status: string;
   cpu: {
     used: number;
+    requested: number;
     capacity: number;
   };
   mem: {
     used: number;
+    requested: number;
     capacity: number;
   };
   info: {
@@ -28,6 +30,10 @@ interface ClusterResponse {
     mem: number;
   };
   totalUsage: {
+    cpu: number;
+    mem: number;
+  };
+  totalRequested: {
     cpu: number;
     mem: number;
   };
@@ -84,7 +90,7 @@ export default function ClusterDashboard() {
               <Activity className="text-emerald-500" size={32} />
               Cluster Node Map
             </h1>
-            <InfoTooltip content="This view shows all nodes in your cluster. Usage bars use a heatmap color scheme: Green (<50%), Amber (50-70%), Orange (70-90%), and Red (>90%)." position="bottom" />
+            <InfoTooltip content="This view shows all nodes in your cluster. Usage bars use a heatmap color scheme: Green (<50%), Amber (50-70%), Orange (70-90%), and Red (>90%). It displays both 'Requested' (allocation) and 'Actual Usage' (live metrics)." position="bottom" />
           </div>
           <p className="text-slate-500 mt-1 font-medium italic">Real-time infrastructure capacity and heatmap utilization</p>
         </div>
@@ -115,20 +121,29 @@ export default function ClusterDashboard() {
               <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                 <Cpu size={20} />
               </div>
-              <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total CPU Usage</span>
+              <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total CPU</span>
             </div>
-            <span className={`text-lg font-black ${getUsageText((data.totalUsage.cpu / data.totalCapacity.cpu) * 100)}`}>
-              {((data.totalUsage.cpu / data.totalCapacity.cpu) * 100).toFixed(1)}%
-            </span>
+            <div className="text-right">
+              <div className={`text-lg font-black ${getUsageText((data.totalRequested?.cpu / data.totalCapacity.cpu) * 100 || 0)}`}>
+                {((data.totalRequested?.cpu / data.totalCapacity.cpu) * 100 || 0).toFixed(1)}% Req
+              </div>
+              <div className={`text-xs font-bold ${getUsageText((data.totalUsage.cpu / data.totalCapacity.cpu) * 100)}`}>
+                {((data.totalUsage.cpu / data.totalCapacity.cpu) * 100).toFixed(1)}% Act
+              </div>
+            </div>
           </div>
-          <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+          <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden relative mb-2">
             <div 
-              className={`h-full transition-all duration-1000 ${getUsageColor((data.totalUsage.cpu / data.totalCapacity.cpu) * 100)}`}
+              className={`h-full opacity-30 absolute top-0 left-0 transition-all duration-1000 ${getUsageColor((data.totalRequested?.cpu / data.totalCapacity.cpu) * 100 || 0)}`}
+              style={{ width: `${(data.totalRequested?.cpu / data.totalCapacity.cpu) * 100 || 0}%` }}
+            />
+            <div 
+              className={`h-full absolute top-0 left-0 transition-all duration-1000 ${getUsageColor((data.totalUsage.cpu / data.totalCapacity.cpu) * 100)}`}
               style={{ width: `${(data.totalUsage.cpu / data.totalCapacity.cpu) * 100}%` }}
             />
           </div>
-          <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-400 uppercase">
-            <span>{data.totalUsage.cpu.toFixed(2)} Cores Used</span>
+          <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+            <span>{data.totalRequested?.cpu?.toFixed(2) || '0'} Req / {data.totalUsage.cpu.toFixed(2)} Act</span>
             <span>{data.totalCapacity.cpu.toFixed(0)} Cores Total</span>
           </div>
         </div>
@@ -139,20 +154,29 @@ export default function ClusterDashboard() {
               <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
                 <Database size={20} />
               </div>
-              <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total RAM Usage</span>
+              <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total RAM</span>
             </div>
-            <span className={`text-lg font-black ${getUsageText((data.totalUsage.mem / data.totalCapacity.mem) * 100)}`}>
-              {((data.totalUsage.mem / data.totalCapacity.mem) * 100).toFixed(1)}%
-            </span>
+            <div className="text-right">
+              <div className={`text-lg font-black ${getUsageText((data.totalRequested?.mem / data.totalCapacity.mem) * 100 || 0)}`}>
+                {((data.totalRequested?.mem / data.totalCapacity.mem) * 100 || 0).toFixed(1)}% Req
+              </div>
+              <div className={`text-xs font-bold ${getUsageText((data.totalUsage.mem / data.totalCapacity.mem) * 100)}`}>
+                {((data.totalUsage.mem / data.totalCapacity.mem) * 100).toFixed(1)}% Act
+              </div>
+            </div>
           </div>
-          <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+          <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden relative mb-2">
             <div 
-              className={`h-full transition-all duration-1000 ${getUsageColor((data.totalUsage.mem / data.totalCapacity.mem) * 100)}`}
+              className={`h-full opacity-30 absolute top-0 left-0 transition-all duration-1000 ${getUsageColor((data.totalRequested?.mem / data.totalCapacity.mem) * 100 || 0)}`}
+              style={{ width: `${(data.totalRequested?.mem / data.totalCapacity.mem) * 100 || 0}%` }}
+            />
+            <div 
+              className={`h-full absolute top-0 left-0 transition-all duration-1000 ${getUsageColor((data.totalUsage.mem / data.totalCapacity.mem) * 100)}`}
               style={{ width: `${(data.totalUsage.mem / data.totalCapacity.mem) * 100}%` }}
             />
           </div>
-          <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-400 uppercase">
-            <span>{(data.totalUsage.mem / 1024 / 1024 / 1024).toFixed(1)} GiB Used</span>
+          <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+            <span>{((data.totalRequested?.mem || 0) / 1024 / 1024 / 1024).toFixed(1)} Req / {(data.totalUsage.mem / 1024 / 1024 / 1024).toFixed(1)} Act</span>
             <span>{(data.totalCapacity.mem / 1024 / 1024 / 1024).toFixed(1)} GiB Total</span>
           </div>
         </div>
@@ -172,16 +196,18 @@ export default function ClusterDashboard() {
               <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/30">
                 <th className="px-8 py-4">Node Name</th>
                 <th className="px-4 py-4 text-center">Status</th>
-                <th className="px-4 py-4">CPU Utilization</th>
-                <th className="px-4 py-4">RAM Utilization</th>
+                <th className="px-4 py-4">CPU Allocation & Usage</th>
+                <th className="px-4 py-4">RAM Allocation & Usage</th>
                 <th className="px-8 py-4 text-right">Environment Info</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {data.nodes.map(node => {
-                const cpuPct = (node.cpu.used / node.cpu.capacity) * 100;
-                const memPct = (node.mem.used / node.mem.capacity) * 100;
-                
+                const cpuUsePct = (node.cpu.used / node.cpu.capacity) * 100;
+                const memUsePct = (node.mem.used / node.mem.capacity) * 100;
+                const cpuReqPct = ((node.cpu.requested || 0) / node.cpu.capacity) * 100;
+                const memReqPct = ((node.mem.requested || 0) / node.mem.capacity) * 100;
+
                 return (
                   <tr key={node.name} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-8 py-5">
@@ -199,35 +225,51 @@ export default function ClusterDashboard() {
                         {node.status}
                       </span>
                     </td>
-                    <td className="px-4 py-5 w-1/4">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between text-[10px] font-bold">
-                          <span className={getUsageText(cpuPct)}>{cpuPct.toFixed(1)}%</span>
-                          <span className="text-slate-400">{node.cpu.used.toFixed(2)} / {node.cpu.capacity} cores</span>
+                    <td className="px-4 py-5 w-[28%]">
+                      <div className="flex flex-col gap-3 pr-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between text-[9px] font-black uppercase tracking-wider">
+                            <span className="text-slate-400">Requested</span>
+                            <span className={getUsageText(cpuReqPct)}>{cpuReqPct.toFixed(1)}% <span className="text-slate-400">({(node.cpu.requested || 0).toFixed(2)} / {node.cpu.capacity} cores)</span></span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div className={`h-full ${getUsageColor(cpuReqPct)} opacity-75`} style={{ width: `${Math.min(cpuReqPct, 100)}%` }} />
+                          </div>
                         </div>
-                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full ${getUsageColor(cpuPct)}`}
-                            style={{ width: `${cpuPct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-5 w-1/4">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between text-[10px] font-bold">
-                          <span className={getUsageText(memPct)}>{memPct.toFixed(1)}%</span>
-                          <span className="text-slate-400">{(node.mem.used / 1024 / 1024 / 1024).toFixed(1)} GiB / {(node.mem.capacity / 1024 / 1024 / 1024).toFixed(0)} GiB</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full ${getUsageColor(memPct)}`}
-                            style={{ width: `${memPct}%` }}
-                          />
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between text-[9px] font-black uppercase tracking-wider">
+                            <span className="text-slate-400">Actual Usage</span>
+                            <span className={getUsageText(cpuUsePct)}>{cpuUsePct.toFixed(1)}% <span className="text-slate-400">({node.cpu.used.toFixed(2)} cores)</span></span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div className={`h-full ${getUsageColor(cpuUsePct)}`} style={{ width: `${Math.min(cpuUsePct, 100)}%` }} />
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-right">
+                    <td className="px-4 py-5 w-[28%]">
+                      <div className="flex flex-col gap-3 pr-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between text-[9px] font-black uppercase tracking-wider">
+                            <span className="text-slate-400">Requested</span>
+                            <span className={getUsageText(memReqPct)}>{memReqPct.toFixed(1)}% <span className="text-slate-400">{((node.mem.requested || 0) / 1024 / 1024 / 1024).toFixed(1)} / {(node.mem.capacity / 1024 / 1024 / 1024).toFixed(0)} GiB</span></span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div className={`h-full ${getUsageColor(memReqPct)} opacity-75`} style={{ width: `${Math.min(memReqPct, 100)}%` }} />
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between text-[9px] font-black uppercase tracking-wider">
+                            <span className="text-slate-400">Actual Usage</span>
+                            <span className={getUsageText(memUsePct)}>{memUsePct.toFixed(1)}% <span className="text-slate-400">{(node.mem.used / 1024 / 1024 / 1024).toFixed(1)} GiB</span></span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div className={`h-full ${getUsageColor(memUsePct)}`} style={{ width: `${Math.min(memUsePct, 100)}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 text-right flex-1">
                       <div className="text-[10px] font-medium text-slate-500 flex flex-col items-end gap-0.5">
                         <span className="font-bold text-slate-400 uppercase tracking-tighter text-[9px]">OS: {node.info.os}</span>
                         <span>{node.info.kernel}</span>
@@ -244,3 +286,4 @@ export default function ClusterDashboard() {
     </div>
   )
 }
+
