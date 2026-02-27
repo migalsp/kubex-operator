@@ -70,59 +70,34 @@ Below the heatmap, you can see granular metrics detailing `Allocatable` resource
 
 Why pay for Dev or Staging environments over the weekend? Kubex automatically scales down deployments and statefulsets to `0` replicas based on Cron-style schedules, and wakes them back up when needed.
 
-### How to Configure Scaling (The UI Way)
+### How to Configure Scaling
 1. Navigate to the **Workload Scaling** tab in the left sidebar.
 2. Here you will see a list of all your active scaling configurations and groups.
-3. Click on **Create Scaling Group** (or configure an individual namespace).
-4. In the modal, define the **Category** name (e.g., "Non-Prod").
-5. Select the target namespaces from the dropdown that should belong to this group.
-6. Set your active days (e.g., Mon-Fri) and active hours (e.g., 09:00 - 18:00), then specify your timezone.
-7. Click **Save**. Kubex will instantly create the underlying CRDs and begin managing the lifecycle of those namespaces.
 
-### Configuration via ScalingConfig (GitOps)
-You can configure a schedule for a specific namespace using a `ScalingConfig` object.
+#### Configuring Individual Namespaces
 
-```yaml
-apiVersion: finops.kubex.io/v1
-kind: ScalingConfig
-metadata:
-  name: team-alpha-dev
-spec:
-  targetNamespace: "alpha-dev"
-  # Set to 'false' to bypass schedules and force the namespace to sleep
-  # Set to 'true' to let schedules handle the waking/sleeping
-  active: true
-  schedules:
-    - days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-      start: "09:00" # Wake up at 9 AM
-      end: "18:00"   # Sleep at 6 PM
-      timezone: "Europe/London"
-```
+1. Find the target namespace you want to schedule.
+2. Click the **Configure Schedule** (calendar icon) next to it.
+3. Define the active days, active hours, and your specific **Timezone**.
+4. Check the **Enable Schedule** toggle to activate it.
+5. Click **Save**.
 
-### Configuration via ScalingGroup (GitOps)
-For large clusters with hundreds of namespaces, managing individual Configs is tedious. Instead, group them by category (e.g., "Non-Prod").
+*Note: You can instantly manually scale a namespace up or down (bypassing the schedule) by clicking the **Scale Down** or **Scale Up** buttons in the UI.*
 
-```yaml
-apiVersion: finops.kubex.io/v1
-kind: ScalingGroup
-metadata:
-  name: non-prod-environments
-spec:
-  category: "Non-Prod"
-  active: true
-  namespaces:
-    - "alpha-dev"
-    - "beta-dev"
-    - "charlie-qa"
-  schedules:
-    - days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-      start: "08:00"
-      end: "19:00"
-      timezone: "America/New_York"
-```
+#### Creating Scaling Groups
+
+For large clusters with hundreds of namespaces, managing individual schedules is tedious. Instead, you can group them.
+
+1. Click the **Create Scaling Group** button at the top of the Workload Scaling dashboard.
+2. Define a **Category Name** (e.g., "Non-Prod").
+3. Select multiple target namespaces from the dropdown that should belong to this group.
+4. Set your active days, active hours, and specify your timezone.
+5. Click **Save Group**.
 
 **Conflict Resolution Note:**
-If a namespace belongs to a `ScalingGroup`, the Group logic **always** wins. Any individual `ScalingConfig` applied to that namespace will be overridden, and its status will reflect `"OverriddenByGroup"`.
+If a namespace belongs to a Scaling Group, the Group logic **always** wins. Any individual schedule applied to that namespace will be overridden, and its status in the UI will display as `OverriddenByGroup`.
+
+*(Under the hood, the Kubex dashboard seamlessly creates and updates `ScalingConfig` and `ScalingGroup` Custom Resources on your behalf, eliminating the need to write and apply YAML manifests manually!)*
 
 ---
 
