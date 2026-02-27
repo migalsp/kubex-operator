@@ -74,16 +74,21 @@ jobs:
           # Extract dynamic versions
           GO_VER=$(go version | awk '{print $3}' | sed 's/go//')
           NODE_VER=$(node -v)
+          COMMIT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
 
           # Create a summary report
           echo "## CI/CD Pipeline Report 🚀" > report.md
           echo "- **Status:** ✅ Successfully built and tested." >> report.md
+          echo "- **Commit:** \`${COMMIT_SHA}\`" >> report.md
+          echo "- **Triggered by:** @${{ github.actor }}" >> report.md
           echo "- **Codecov:** Coverage report uploaded." >> report.md
           echo "- **Go Version:** ${GO_VER}" >> report.md
           echo "- **Node Version:** ${NODE_VER}" >> report.md
-          echo "All checks passed. Ready for review!" >> report.md
+          echo "" >> report.md
+          echo "All checks passed. Ready for review! 🎉" >> report.md
 
-          # We update the original PR body with the test report.
-          # We use `gh pr edit` to append or ensure the status is known.
-          # Note: editing body can overwrite user text if not careful, so we post a comment instead as best practice.
+          # Post the comment to the PR
           gh pr comment $PR_URL -F report.md
+
+          # Automatically add a 'CI Passed' label
+          gh pr edit $PR_URL --add-label "🟢 CI Passed"
