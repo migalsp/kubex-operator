@@ -1,0 +1,13 @@
+apiVersion: finops.kubex.io/v1
+kind: ScalingConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: kubex
+    app.kubernetes.io/instance: scalingconfig-sample
+    app.kubernetes.io/part-of: kubex
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kubex
+  name: scalingconfig-sample
+spec:
+  targetNamespace: default
+  active: true

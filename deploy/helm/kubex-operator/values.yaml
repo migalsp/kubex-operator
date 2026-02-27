@@ -1,0 +1,25 @@
+replicaCount: 1
+
+fullnameOverride: "kubex-operator"
+
+image:
+  repository: ghcr.io/migalsp/kubex-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "v1.0.0"
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 8082
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

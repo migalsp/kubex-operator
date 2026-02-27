@@ -1,0 +1,97 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate Version
+        id: version
+        run: |
+          # Use standard timestamp or commit hash based versioning if no tag
+          # Here we autogenerate a patch version bump using git rev-list
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          VERSION="v1.0.${COMMIT_COUNT}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Inject Dynamic Version
+        run: |
+          SEMVER=$(echo $VERSION | sed 's/^v//')
+          # Update Helm Chart values (Image Tag)
+          sed -i "s/tag: \"v1.0.0\"/tag: \"$VERSION\"/g" deploy/helm/kubex-operator/values.yaml
+          # Update UI package.json
+          sed -i "s/\"version\": \"1.0.0\"/\"version\": \"$SEMVER\"/g" ui/package.json
+          # Update OpenAPI spec
+          sed -i "s/version: 1.0.0/version: $SEMVER/g" internal/api/openapi.yaml
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/kubex-operator:${{ env.VERSION }},ghcr.io/${{ github.repository }}/kubex-operator:latest
+          build-args: |
+            VERSION=${{ env.VERSION }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Package Helm Chart
+        run: |
+          helm package ./deploy/helm/kubex-operator --version ${{ env.VERSION }} --app-version ${{ env.VERSION }}
+          # The packaged chart will be named kubex-operator-${VERSION}.tgz
+          echo "CHART_FILE=kubex-operator-${{ env.VERSION }}.tgz" >> $GITHUB_ENV
+
+      - name: Publish Helm Chart to GHCR
+        run: |
+          # Helm OCI registries
+          echo ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          helm push ${{ env.CHART_FILE }} oci://ghcr.io/${{ github.repository }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          generate_release_notes: true
+          files: |
+            ${{ env.CHART_FILE }}
+          body: |
+            ## Automated Release 🚀
+
+            This release includes:
+            - **Container Image:** `ghcr.io/${{ github.repository }}/kubex-operator:${{ env.VERSION }}`
+            - **Helm Chart:** Uploaded as release asset and published to GHCR.
+
+            **Installation:**
+            ```bash
+            helm upgrade --install kubex-operator oci://ghcr.io/${{ github.repository }}/kubex-operator --version ${{ env.VERSION }}
+            ```
