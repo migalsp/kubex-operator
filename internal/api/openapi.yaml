@@ -7,7 +7,7 @@ info:
 
     **Authentication:** All endpoints (except `/api/login`) require a valid `kubex-session` cookie.
     Obtain one via `POST /api/login`.
-  version: "1.0.0"
+  version: "1.0.0" # x-release-please-version
   contact:
     name: Kubex
     url: https://github.com/migalsp/kubex-operator

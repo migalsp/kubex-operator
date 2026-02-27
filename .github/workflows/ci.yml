@@ -1,11 +1,11 @@
 name: CI
 on:
-  pull_request:
+  push:
     branches:
       - main
       - master
-  push:
-    branches-ignore:
+  pull_request:
+    branches:
       - main
       - master
 
@@ -52,7 +52,7 @@ jobs:
           files: ./cover.out
           flags: unittests
           name: codecov-umbrella
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
       - name: Build UI
         working-directory: ./ui
