@@ -292,12 +292,62 @@ func (s *Server) handleClusterNodes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	pods, err := s.K8sClient.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		logf.Log.Error(err, "Failed to list pods for calculating node capacity requests")
+	}
+
+	nodeReqCPU := make(map[string]*resource.Quantity)
+	nodeReqMem := make(map[string]*resource.Quantity)
+
+	if pods != nil {
+		for _, pod := range pods.Items {
+			if pod.Spec.NodeName == "" || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+				continue
+			}
+
+			reqCPU := resource.NewQuantity(0, resource.DecimalSI)
+			reqMem := resource.NewQuantity(0, resource.BinarySI)
+
+			for _, container := range pod.Spec.Containers {
+				if q, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					reqCPU.Add(q)
+				}
+				if q, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
+					reqMem.Add(q)
+				}
+			}
+
+			// Pod request is max of any init container request vs sum of app container requests
+			for _, container := range pod.Spec.InitContainers {
+				if q, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					if q.Cmp(*reqCPU) > 0 {
+						reqCPU = &q // use copy to prevent pointer sharing issues, actually q is by value in range, safe
+					}
+				}
+				if q, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
+					if q.Cmp(*reqMem) > 0 {
+						reqMem = &q
+					}
+				}
+			}
+
+			if _, ok := nodeReqCPU[pod.Spec.NodeName]; !ok {
+				nodeReqCPU[pod.Spec.NodeName] = resource.NewQuantity(0, resource.DecimalSI)
+				nodeReqMem[pod.Spec.NodeName] = resource.NewQuantity(0, resource.BinarySI)
+			}
+			nodeReqCPU[pod.Spec.NodeName].Add(*reqCPU)
+			nodeReqMem[pod.Spec.NodeName].Add(*reqMem)
+		}
+	}
+
 	var totalCapacityCPU, totalCapacityMem resource.Quantity
 	var totalUsageCPU, totalUsageMem resource.Quantity
+	var totalRequestedCPU, totalRequestedMem resource.Quantity
 	var nodeInfos []map[string]interface{}
 
 	for _, n := range nodes.Items {
-		capacity := n.Status.Capacity
+		capacity := n.Status.Allocatable // Use Allocatable instead of absolute Capacity for true limits
 		totalCapacityCPU.Add(*capacity.Cpu())
 		totalCapacityMem.Add(*capacity.Memory())
 
@@ -307,8 +357,18 @@ func (s *Server) handleClusterNodes(w http.ResponseWriter, r *http.Request) {
 			uMem = *usage.Memory()
 		}
 
+		var rCPU, rMem resource.Quantity
+		if q, ok := nodeReqCPU[n.Name]; ok {
+			rCPU = *q
+		}
+		if q, ok := nodeReqMem[n.Name]; ok {
+			rMem = *q
+		}
+
 		totalUsageCPU.Add(uCPU)
 		totalUsageMem.Add(uMem)
+		totalRequestedCPU.Add(rCPU)
+		totalRequestedMem.Add(rMem)
 
 		status := "Unknown"
 		for _, cond := range n.Status.Conditions {
@@ -325,12 +385,14 @@ func (s *Server) handleClusterNodes(w http.ResponseWriter, r *http.Request) {
 			"name":   n.Name,
 			"status": status,
 			"cpu": map[string]interface{}{
-				"used":     uCPU.AsApproximateFloat64(),
-				"capacity": capacity.Cpu().AsApproximateFloat64(),
+				"used":      uCPU.AsApproximateFloat64(),
+				"requested": rCPU.AsApproximateFloat64(),
+				"capacity":  capacity.Cpu().AsApproximateFloat64(),
 			},
 			"mem": map[string]interface{}{
-				"used":     uMem.Value(),
-				"capacity": capacity.Memory().Value(),
+				"used":      uMem.Value(),
+				"requested": rMem.Value(),
+				"capacity":  capacity.Memory().Value(),
 			},
 			"info": map[string]string{
 				"os":      n.Status.NodeInfo.OSImage,
@@ -356,6 +418,10 @@ func (s *Server) handleClusterNodes(w http.ResponseWriter, r *http.Request) {
 		"totalUsage": map[string]interface{}{
 			"cpu": totalUsageCPU.AsApproximateFloat64(),
 			"mem": totalUsageMem.Value(),
+		},
+		"totalRequested": map[string]interface{}{
+			"cpu": totalRequestedCPU.AsApproximateFloat64(),
+			"mem": totalRequestedMem.Value(),
 		},
 		"nodes": nodeInfos,
 	}
