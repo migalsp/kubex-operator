@@ -69,6 +69,14 @@ type ScalingGroupStatus struct {
 	// +optional
 	ManagedCount int `json:"managedCount,omitempty"`
 
+	// NamespacesReady is the number of namespaces that have reached their target state
+	// +optional
+	NamespacesReady int `json:"namespacesReady,omitempty"`
+
+	// NamespacesTotal is the total number of namespaces in this group
+	// +optional
+	NamespacesTotal int `json:"namespacesTotal,omitempty"`
+
 	// Conditions represent the current state of the ScalingGroup resource.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

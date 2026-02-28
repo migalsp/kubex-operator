@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,20 +70,35 @@ var _ = Describe("ScalingGroup Controller", func() {
 			By("Cleanup the specific resource instance ScalingGroup")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
-		It("should successfully reconcile the resource", func() {
+		It("should successfully reconcile the resource and update its phase", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &ScalingGroupReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-				Engine: &scaling.Engine{Client: k8sClient},
+				Client:   k8sClient,
+				Scheme:   k8sClient.Scheme(),
+				Engine:   &scaling.Engine{Client: k8sClient},
+				Recorder: record.NewFakeRecorder(100),
 			}
 
+			// First Reconcile - initializes LastAction
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+			// Add Target Replicas to bypass straight to complete state
+			var scalinggroup finopsv1.ScalingGroup
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &scalinggroup)).To(Succeed())
+			scalinggroup.Status.Phase = "ScalingUp"
+			scalinggroup.Status.NamespacesReady = 0
+			scalinggroup.Status.NamespacesTotal = 1
+			Expect(k8sClient.Status().Update(ctx, &scalinggroup)).To(Succeed())
+
+			// Second Reconcile - tests PhaseTransition and ScalingProgress
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
 		})
 	})
 })

@@ -79,8 +79,27 @@ func (r *ScalingConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	l.Info("Reconciling ScalingConfig", "targetNamespace", config.Spec.TargetNamespace, "targetActive", targetActive)
 
+	// 2.5 Phase and Timeout Logic
+	currentPhase := config.Status.Phase
+	computedPhase := r.Engine.ComputePhase(ctx, config.Spec.TargetNamespace, targetActive)
+
+	if currentPhase != computedPhase {
+		config.Status.Phase = computedPhase
+		config.Status.LastAction = metav1.Now()
+	} else if config.Status.LastAction.IsZero() {
+		config.Status.LastAction = metav1.Now()
+	}
+
+	timeoutPassed := false
+	if config.Status.Phase == "ScalingUp" || config.Status.Phase == "ScalingDown" {
+		if time.Since(config.Status.LastAction.Time) > time.Minute {
+			l.Info("Scaling timeout exceeded 1 minute. Overriding sequence blocks.", "elapsed", time.Since(config.Status.LastAction.Time))
+			timeoutPassed = true
+		}
+	}
+
 	// 3. Execute Scaling if needed
-	newReplicas, ready, err := r.Engine.ScaleTarget(ctx, config.Spec.TargetNamespace, targetActive, config.Spec.Sequence, config.Spec.Exclusions, config.Status.OriginalReplicas)
+	newReplicas, ready, err := r.Engine.ScaleTarget(ctx, config.Spec.TargetNamespace, targetActive, config.Spec.Sequence, config.Spec.Exclusions, config.Status.OriginalReplicas, timeoutPassed)
 	if err != nil {
 		l.Error(err, "failed to execute scaling")
 		return ctrl.Result{RequeueAfter: time.Minute}, err
@@ -88,8 +107,7 @@ func (r *ScalingConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// 4. Update Status
 	config.Status.OriginalReplicas = newReplicas
-	config.Status.LastAction = metav1.Now()
-	config.Status.Phase = r.Engine.ComputePhase(ctx, config.Spec.TargetNamespace, targetActive)
+	// Phase and LastAction are tracked before ScaleTarget so the timeout window starts immediately.
 
 	if err := r.Status().Update(ctx, config); err != nil {
 		return ctrl.Result{}, err

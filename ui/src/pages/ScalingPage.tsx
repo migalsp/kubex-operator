@@ -11,6 +11,7 @@ import {
   CalendarClock
 } from 'lucide-react'
 import ScalingConfigModal from '../components/ScalingConfigModal'
+import ScalingPipelineModal from '../components/ScalingPipelineModal'
 
 interface ScalingSchedule {
   days: number[];
@@ -35,6 +36,8 @@ interface ScalingGroup {
     phase: string;
     lastAction: string;
     managedCount: number;
+    namespacesReady?: number;
+    namespacesTotal?: number;
   };
 }
 
@@ -63,6 +66,7 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
   
   // Modal States
   const [editingGroup, setEditingGroup] = useState<ScalingGroup | null>(null);
+  const [viewingPipelineGroupName, setViewingPipelineGroupName] = useState<string | null>(null);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<{ mode: 'schedule' | 'sequence' | 'group', name: string, spec: any } | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
@@ -353,6 +357,26 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
           {group.spec.namespaces.map(ns => (
             <span key={ns} className="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-medium border border-slate-200">{ns}</span>
           ))}
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div 
+        className="mb-3 px-3 py-2 -mx-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group/pb relative"
+        title="View Execution Pipeline & Logs"
+        onClick={() => setViewingPipelineGroupName(group.metadata.name)}
+      >
+        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+          <span className="group-hover/pb:text-indigo-500 transition-colors">Scaling Progress</span>
+          <span className="text-slate-500">{group.status?.namespacesReady || 0} / {group.status?.namespacesTotal || group.spec.namespaces.length || 0} NS</span>
+        </div>
+        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
+          <div 
+            className="absolute top-0 left-0 h-full bg-indigo-500 rounded-full transition-all duration-500 ease-out"
+            style={{ 
+              width: `${Math.min(100, Math.max(0, ((group.status?.namespacesReady || 0) / (group.status?.namespacesTotal || group.spec.namespaces.length || 1)) * 100))}%` 
+            }}
+          />
         </div>
       </div>
 
@@ -655,6 +679,13 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
           spec={editingPolicy.spec} 
           onClose={() => setEditingPolicy(null)} 
           onSave={handleUpdateConfig} 
+        />
+      )}
+
+      {viewingPipelineGroupName && groups.find(g => g.metadata.name === viewingPipelineGroupName) && (
+        <ScalingPipelineModal 
+          group={groups.find(g => g.metadata.name === viewingPipelineGroupName)!} 
+          onClose={() => setViewingPipelineGroupName(null)} 
         />
       )}
     </div>

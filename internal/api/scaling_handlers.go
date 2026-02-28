@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -66,10 +67,16 @@ func (s *Server) handleScalingGroupActions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Sub-actions like /api/scaling/groups/{name}/manual
-	if len(parts) > 5 && parts[5] == "manual" {
-		s.handleScalingGroupManual(w, r, group)
-		return
+	// Sub-actions like /api/scaling/groups/{name}/manual or /events
+	if len(parts) > 5 {
+		if parts[5] == "manual" {
+			s.handleScalingGroupManual(w, r, group)
+			return
+		}
+		if parts[5] == "events" {
+			s.handleScalingGroupEvents(w, r, group)
+			return
+		}
 	}
 
 	switch r.Method {
@@ -131,6 +138,40 @@ func (s *Server) handleScalingGroupManual(w http.ResponseWriter, r *http.Request
 		return
 	}
 	json.NewEncoder(w).Encode(group)
+}
+
+func (s *Server) handleScalingGroupEvents(w http.ResponseWriter, r *http.Request, group *finopsv1.ScalingGroup) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := r.Context()
+	var events corev1.EventList
+
+	// Filter events targeting this specific ScalingGroup
+	err := s.Client.List(ctx, &events, client.InNamespace(group.Namespace), client.MatchingFields{"involvedObject.name": group.Name})
+	if err != nil {
+		// Log the error but return empty array if field selector fails
+		// In some setups, field selectors might require index setup, try fallback filtering if needed.
+		// For now, if exact field matching is strict, we fetch all in namespace and filter in memory.
+		err = s.Client.List(ctx, &events, client.InNamespace(group.Namespace))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Filter in memory to ensure we only return ScalingGroup events
+	var filtered []corev1.Event
+	for _, e := range events.Items {
+		if e.InvolvedObject.Kind == "ScalingGroup" && e.InvolvedObject.Name == group.Name {
+			filtered = append(filtered, e)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(filtered)
 }
 
 func (s *Server) handleScalingConfigs(w http.ResponseWriter, r *http.Request) {

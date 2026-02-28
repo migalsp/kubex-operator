@@ -83,7 +83,7 @@ func parseMinutes(hhmm string) int {
 
 // ScaleTarget handles scaling for a specific namespace.
 // It returns the updated map of original replicas and a boolean indicating if target state is fully reached.
-func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequence []string, exclusions []string, originalReplicas map[string]int32) (map[string]int32, bool, error) {
+func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequence []string, exclusions []string, originalReplicas map[string]int32, timeoutPassed bool) (map[string]int32, bool, error) {
 	l := log.FromContext(ctx).WithValues("namespace", ns, "targetActive", active)
 
 	if originalReplicas == nil {
@@ -179,8 +179,12 @@ func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequen
 		// After acting, check if it reached readiness.
 		// If not, we return false and stop here (strict sequencing).
 		if !e.isGroupReady(ctx, objs, active) {
-			l.Info("Priority group not yet ready, stopping for now", "priority", p)
-			return originalReplicas, false, nil
+			if timeoutPassed {
+				l.Info("Priority group not yet ready, but 1-minute timeout passed! Bypassing strict sequence for this group.", "priority", p)
+			} else {
+				l.Info("Priority group not yet ready, stopping for now", "priority", p)
+				return originalReplicas, false, nil
+			}
 		}
 
 		// Group IS ready.

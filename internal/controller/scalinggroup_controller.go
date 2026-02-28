@@ -18,12 +18,14 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -32,11 +34,11 @@ import (
 	"github.com/migalsp/kubex-operator/internal/scaling"
 )
 
-// ScalingGroupReconciler reconciles a ScalingGroup object
 type ScalingGroupReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Engine *scaling.Engine
+	Scheme   *runtime.Scheme
+	Engine   *scaling.Engine
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=finops.kubex.io,resources=scalinggroups,verbs=get;list;watch;create;update;patch;delete
@@ -114,6 +116,18 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	allReady := true
 	managedCount := 0
 
+	timeoutPassed := false
+	if group.Status.Phase == "ScalingUp" || group.Status.Phase == "ScalingDown" {
+		if time.Since(group.Status.LastAction.Time) > time.Minute {
+			timeoutPassed = true
+		}
+	}
+
+	namespacesReady := 0
+	namespacesTotal := 0
+
+	var blockingNamespaces []string
+
 	// 4. Iterate over stages
 	for i, stage := range stages {
 		l.Info("Processing scaling stage", "stageIndex", i, "namespaces", stage)
@@ -149,11 +163,12 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				}
 			}
 
-			updatedOriginals, nsReady, err := r.Engine.ScaleTarget(ctx, ns, targetActive, nsSequence, exclusions, nsReplicas)
+			updatedOriginals, nsReady, err := r.Engine.ScaleTarget(ctx, ns, targetActive, nsSequence, exclusions, nsReplicas, timeoutPassed)
 			if err != nil {
 				l.Error(err, "failed to scale namespace", "namespace", ns)
 				allReady = false
 				stageReady = false
+				blockingNamespaces = append(blockingNamespaces, ns)
 				continue
 			}
 
@@ -167,11 +182,26 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				group.Status.OriginalReplicas[nsKeyPrefix+k] = v
 			}
 
+			namespacesTotal++
+
 			// c. Check if namespace reached target phase
 			phase := r.Engine.ComputePhase(ctx, ns, targetActive)
-			if (targetActive && phase != "ScaledUp") || (!targetActive && phase != "ScaledDown") {
+			if (targetActive && phase == "ScaledUp") || (!targetActive && phase == "ScaledDown") {
+				namespacesReady++
+			} else {
 				stageReady = false
 				allReady = false
+				// Prevent duplicate appends if ScaleTarget also failed
+				found := false
+				for _, bNs := range blockingNamespaces {
+					if bNs == ns {
+						found = true
+						break
+					}
+				}
+				if !found {
+					blockingNamespaces = append(blockingNamespaces, ns)
+				}
 			}
 		}
 
@@ -181,22 +211,63 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
+	if !allReady && len(blockingNamespaces) > 0 {
+		stageNumber := 0
+		for idx, stage := range stages {
+			// Find which stage the first blocking namespace belongs to
+			for _, sNs := range stage {
+				if sNs == blockingNamespaces[0] {
+					stageNumber = idx + 1
+					break
+				}
+			}
+			if stageNumber != 0 {
+				break
+			}
+		}
+
+		if timeoutPassed {
+			msg := fmt.Sprintf("Timeout exceeded 1 min. Overriding sequence. Waiting on Stage %d: %s", stageNumber, strings.Join(blockingNamespaces, ", "))
+			r.Recorder.Event(group, "Warning", "ScalingTimeout", msg)
+		} else {
+			msg := fmt.Sprintf("Executing Stage %d. Waiting for targets in: %s", stageNumber, strings.Join(blockingNamespaces, ", "))
+			r.Recorder.Event(group, "Normal", "ScalingActive", msg)
+		}
+	}
+
+	if namespacesReady > group.Status.NamespacesReady {
+		r.Recorder.Eventf(group, "Normal", "ScalingProgress", "Progress updated: %d of %d namespaces reached target state.", namespacesReady, namespacesTotal)
+	}
+
 	// 5. Update Status
 	group.Status.ManagedCount = managedCount
-	group.Status.LastAction = metav1.Now()
+	group.Status.NamespacesReady = namespacesReady
+	group.Status.NamespacesTotal = namespacesTotal
 
+	newPhase := "ScaledUp"
 	if allReady {
 		if targetActive {
-			group.Status.Phase = "ScaledUp"
+			newPhase = "ScaledUp"
 		} else {
-			group.Status.Phase = "ScaledDown"
+			newPhase = "ScaledDown"
 		}
 	} else {
 		if targetActive {
-			group.Status.Phase = "ScalingUp"
+			newPhase = "ScalingUp"
 		} else {
-			group.Status.Phase = "ScalingDown"
+			newPhase = "ScalingDown"
 		}
+	}
+
+	if group.Status.Phase != newPhase {
+		oldPhase := group.Status.Phase
+		group.Status.Phase = newPhase
+		group.Status.LastAction = metav1.Now()
+
+		// Emit Event on Phase transition
+		r.Recorder.Eventf(group, "Normal", "PhaseTransition", "Group phase transitioned from %s to %s", oldPhase, newPhase)
+	} else if group.Status.LastAction.IsZero() {
+		group.Status.LastAction = metav1.Now()
 	}
 
 	if err := r.Status().Update(ctx, group); err != nil {
@@ -216,6 +287,8 @@ func (r *ScalingGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.Engine == nil {
 		r.Engine = &scaling.Engine{Client: r.Client}
 	}
+	r.Recorder = mgr.GetEventRecorderFor("scalinggroup-controller")
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&finopsv1.ScalingGroup{}).
 		Named("scalinggroup").

@@ -199,7 +199,7 @@ func TestScaleTarget(t *testing.T) {
 	orig := make(map[string]int32)
 
 	// Scale Down
-	newOrig, _, err := e.ScaleTarget(ctx, "test-ns", false, nil, nil, orig)
+	newOrig, _, err := e.ScaleTarget(ctx, "test-ns", false, nil, nil, orig, false)
 	if err != nil {
 		t.Fatal(err)
 	}

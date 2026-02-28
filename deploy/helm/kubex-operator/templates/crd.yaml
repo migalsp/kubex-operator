@@ -186,6 +186,123 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.1
+  name: namespaceoptimizations.finops.kubex.io
+spec:
+  group: finops.kubex.io
+  names:
+    kind: NamespaceOptimization
+    listKind: NamespaceOptimizationList
+    plural: namespaceoptimizations
+    singular: namespaceoptimization
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: NamespaceOptimization is the Schema for the namespaceoptimizations
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NamespaceOptimizationSpec defines the desired state of NamespaceOptimization
+            properties:
+              targetNamespace:
+                description: TargetNamespace is the namespace this optimization applies
+                  to
+                type: string
+            required:
+            - targetNamespace
+            type: object
+          status:
+            description: NamespaceOptimizationStatus defines the observed state of
+              NamespaceOptimization
+            properties:
+              active:
+                description: Active indicates if the optimization is currently applied
+                type: boolean
+              optimizedAt:
+                description: OptimizedAt is when the optimization was last applied
+                format: date-time
+                type: string
+              workloads:
+                description: Workloads contains the list of optimized workloads and
+                  their original values
+                items:
+                  description: WorkloadOptimization stores optimization details for
+                    a specific workload
+                  properties:
+                    kind:
+                      description: Kind of the workload
+                      type: string
+                    name:
+                      description: Name of the workload (Deployment or StatefulSet)
+                      type: string
+                    optimized:
+                      description: Optimized values applied
+                      properties:
+                        cpuLimit:
+                          type: string
+                        cpuRequest:
+                          type: string
+                        memoryLimit:
+                          type: string
+                        memoryRequest:
+                          type: string
+                      type: object
+                    original:
+                      description: Original values before optimization
+                      properties:
+                        cpuLimit:
+                          type: string
+                        cpuRequest:
+                          type: string
+                        memoryLimit:
+                          type: string
+                        memoryRequest:
+                          type: string
+                      type: object
+                  required:
+                  - kind
+                  - name
+                  - optimized
+                  - original
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+            required:
+            - active
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: scalingconfigs.finops.kubex.io
 spec:
   group: finops.kubex.io
@@ -418,13 +535,6 @@ spec:
                 description: Category is the group classification (e.g. Solution,
                   Platform)
                 type: string
-              exclusions:
-                description: Exclusions lists resources that should never be scaled
-                  down
-                items:
-                  type: string
-                type: array
-                x-kubernetes-list-type: atomic
               namespaces:
                 description: Namespaces is the list of namespaces managed by this
                   group
@@ -467,8 +577,11 @@ spec:
                 type: array
                 x-kubernetes-list-type: atomic
               sequence:
-                description: Sequence defines the order of scaling namespaces and
-                  resources.
+                description: |-
+                  Sequence defines the order of scaling namespaces.
+                  Each element can be a single namespace or multiple namespaces separated by spaces (a "stage").
+                  Stages are executed sequentially, waiting for all namespaces in a stage to reach the target state.
+                  Example: ["ns1", "ns2 ns3", "ns4"]
                 items:
                   type: string
                 type: array
@@ -546,6 +659,14 @@ spec:
                 description: ManagedCount is the current number of successfully managed
                   namespaces in the group
                 type: integer
+              namespacesReady:
+                description: NamespacesReady is the number of namespaces that have
+                  reached their target state
+                type: integer
+              namespacesTotal:
+                description: NamespacesTotal is the total number of namespaces in
+                  this group
+                type: integer
               originalReplicas:
                 additionalProperties:
                   format: int32
@@ -558,115 +679,6 @@ spec:
                 description: Phase is the current state of the group (ScaledUp, ScalingDown,
                   ScaledDown)
                 type: string
-            type: object
-        required:
-        - spec
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.20.1
-  name: namespaceoptimizations.finops.kubex.io
-spec:
-  group: finops.kubex.io
-  names:
-    kind: NamespaceOptimization
-    listKind: NamespaceOptimizationList
-    plural: namespaceoptimizations
-    singular: namespaceoptimization
-  scope: Namespaced
-  versions:
-  - name: v1
-    schema:
-      openAPIV3Schema:
-        description: NamespaceOptimization is the Schema for the namespaceoptimizations API
-        properties:
-          apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-            type: string
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: spec defines the desired state of NamespaceOptimization
-            properties:
-              targetNamespace:
-                description: TargetNamespace is the namespace this optimization applies
-                  to
-                type: string
-            required:
-            - targetNamespace
-            type: object
-          status:
-            description: status defines the observed state of NamespaceOptimization
-            properties:
-              active:
-                description: Active indicates if the optimization is currently applied
-                type: boolean
-              optimizedAt:
-                description: OptimizedAt is when the optimization was last applied
-                format: date-time
-                type: string
-              workloads:
-                description: Workloads contains the list of optimized workloads and
-                  their original values
-                items:
-                  properties:
-                    kind:
-                      description: Kind of the workload
-                      type: string
-                    name:
-                      description: Name of the workload (Deployment or StatefulSet)
-                      type: string
-                    optimized:
-                      description: Optimized values applied
-                      properties:
-                        cpuLimit:
-                          type: string
-                        cpuRequest:
-                          type: string
-                        memoryLimit:
-                          type: string
-                        memoryRequest:
-                          type: string
-                      type: object
-                    original:
-                      description: Original values before optimization
-                      properties:
-                        cpuLimit:
-                          type: string
-                        cpuRequest:
-                          type: string
-                        memoryLimit:
-                          type: string
-                        memoryRequest:
-                          type: string
-                      type: object
-                  required:
-                  - kind
-                  - name
-                  type: object
-                type: array
-                x-kubernetes-list-map-keys:
-                - name
-                x-kubernetes-list-type: map
             type: object
         required:
         - spec

@@ -172,6 +172,14 @@ spec:
                 description: ManagedCount is the current number of successfully managed
                   namespaces in the group
                 type: integer
+              namespacesReady:
+                description: NamespacesReady is the number of namespaces that have
+                  reached their target state
+                type: integer
+              namespacesTotal:
+                description: NamespacesTotal is the total number of namespaces in
+                  this group
+                type: integer
               originalReplicas:
                 additionalProperties:
                   format: int32
