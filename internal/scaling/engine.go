@@ -158,7 +158,14 @@ func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequen
 				if t, ok := originalReplicas[key]; ok {
 					target = t
 				} else {
-					target = 1
+					// BUGFIX: If we don't have a record of original replicas,
+					// don't force it to 1 if it's already higher.
+					current := getReplicas(obj)
+					if current > 0 {
+						target = current
+					} else {
+						target = 1
+					}
 				}
 			}
 
@@ -187,9 +194,8 @@ func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequen
 			}
 		}
 
-		// Group IS ready.
-		// If scaling UP, we can now safely remove from originals.
-		if active {
+		// If scaling UP, we can now safely remove from originals IF they are ready.
+		if active && e.isGroupReady(ctx, objs, active) {
 			for _, obj := range objs {
 				key := fmt.Sprintf("%T/%s", obj, obj.GetName())
 				delete(originalReplicas, key)

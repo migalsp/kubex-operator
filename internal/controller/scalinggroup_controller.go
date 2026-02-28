@@ -125,6 +125,9 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	namespacesReady := 0
 	namespacesTotal := 0
+	for _, stage := range stages {
+		namespacesTotal += len(stage)
+	}
 
 	var blockingNamespaces []string
 
@@ -156,10 +159,11 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// b. Scale Target
 			nsKeyPrefix := ns + "/"
 			nsReplicas := make(map[string]int32)
-			for k, v := range group.Status.OriginalReplicas {
-				if strings.HasPrefix(k, nsKeyPrefix) {
-					nsReplicas[strings.TrimPrefix(k, nsKeyPrefix)] = v
-					delete(group.Status.OriginalReplicas, k)
+			if group.Status.OriginalReplicas != nil {
+				for k, v := range group.Status.OriginalReplicas {
+					if strings.HasPrefix(k, nsKeyPrefix) {
+						nsReplicas[strings.TrimPrefix(k, nsKeyPrefix)] = v
+					}
 				}
 			}
 
@@ -178,11 +182,18 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 
 			// Merge back
+			if group.Status.OriginalReplicas == nil {
+				group.Status.OriginalReplicas = make(map[string]int32)
+			}
+			// First clear old ones for this namespace to sync deletions from engine
+			for k := range group.Status.OriginalReplicas {
+				if strings.HasPrefix(k, nsKeyPrefix) {
+					delete(group.Status.OriginalReplicas, k)
+				}
+			}
 			for k, v := range updatedOriginals {
 				group.Status.OriginalReplicas[nsKeyPrefix+k] = v
 			}
-
-			namespacesTotal++
 
 			// c. Check if namespace reached target phase
 			phase := r.Engine.ComputePhase(ctx, ns, targetActive)
@@ -227,7 +238,7 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		if timeoutPassed {
-			msg := fmt.Sprintf("Timeout exceeded 1 min. Overriding sequence. Waiting on Stage %d: %s", stageNumber, strings.Join(blockingNamespaces, ", "))
+			msg := fmt.Sprintf("Timeout exceeded 1 min. Strict sequence is still active. Waiting on Stage %d: %s", stageNumber, strings.Join(blockingNamespaces, ", "))
 			r.Recorder.Event(group, "Warning", "ScalingTimeout", msg)
 		} else {
 			msg := fmt.Sprintf("Executing Stage %d. Waiting for targets in: %s", stageNumber, strings.Join(blockingNamespaces, ", "))
