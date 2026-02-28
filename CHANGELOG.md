@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/migalsp/kubex-operator/compare/v1.3.1...v1.3.2) (2026-02-28)
+
+
+### Bug Fixes
+
+* fix `ReadyNamespaces` field to ScalingGroup status, update controller logic to populate it, and enhance the UI to display individual namespace readiness ([02aee95](https://github.com/migalsp/kubex-operator/commit/02aee95537cedd8859afa9e45a29d4d2dc7c84f9))
+
 ## [1.3.1](https://github.com/migalsp/kubex-operator/compare/v1.3.0...v1.3.1) (2026-02-28)
 
 
