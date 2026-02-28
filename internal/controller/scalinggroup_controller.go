@@ -130,6 +130,7 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	var blockingNamespaces []string
+	var readyNamespaces []string
 
 	// 4. Iterate over stages
 	for i, stage := range stages {
@@ -199,6 +200,7 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			phase := r.Engine.ComputePhase(ctx, ns, targetActive)
 			if (targetActive && phase == "ScaledUp") || (!targetActive && phase == "ScaledDown") {
 				namespacesReady++
+				readyNamespaces = append(readyNamespaces, ns)
 			} else {
 				stageReady = false
 				allReady = false
@@ -254,6 +256,7 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	group.Status.ManagedCount = managedCount
 	group.Status.NamespacesReady = namespacesReady
 	group.Status.NamespacesTotal = namespacesTotal
+	group.Status.ReadyNamespaces = readyNamespaces
 
 	newPhase := "ScaledUp"
 	if allReady {

@@ -13,6 +13,7 @@ interface ScalingGroup {
     originalReplicas?: Record<string, number>;
     namespacesReady?: number;
     namespacesTotal?: number;
+    readyNamespaces?: string[];
   };
 }
 
@@ -202,12 +203,21 @@ const ScalingPipelineModal: React.FC<ScalingPipelineModalProps> = ({ group, onCl
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      {stage.map(ns => (
-                        <div key={ns} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${status === 'pending' ? 'bg-slate-50/50' : (status === 'done' ? 'bg-emerald-50/50' : 'bg-amber-50/50')}`}>
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === 'pending' ? 'bg-slate-200' : (status === 'done' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse')}`} />
-                          <span className={`text-sm font-medium truncate ${status === 'pending' ? 'text-slate-400' : 'text-slate-600'}`} title={ns}>{ns}</span>
-                        </div>
-                      ))}
+                      {stage.map(ns => {
+                        const isNSReady = liveGroup.status?.readyNamespaces?.includes(ns);
+                        const isStageRunning = status === 'in-progress';
+                        
+                        let nsStatus = 'pending';
+                        if (isNSReady) nsStatus = 'done';
+                        else if (isStageRunning) nsStatus = 'in-progress';
+
+                        return (
+                          <div key={ns} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${nsStatus === 'pending' ? 'bg-slate-50/50' : (nsStatus === 'done' ? 'bg-emerald-50/50' : 'bg-amber-50/50')}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${nsStatus === 'pending' ? 'bg-slate-200' : (nsStatus === 'done' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse')}`} />
+                            <span className={`text-sm font-medium truncate ${nsStatus === 'pending' ? 'text-slate-400' : 'text-slate-600'}`} title={ns}>{ns}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 

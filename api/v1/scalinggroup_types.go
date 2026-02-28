@@ -77,6 +77,10 @@ type ScalingGroupStatus struct {
 	// +optional
 	NamespacesTotal int `json:"namespacesTotal,omitempty"`
 
+	// ReadyNamespaces is the list of namespaces that are currently at their target state
+	// +optional
+	ReadyNamespaces []string `json:"readyNamespaces,omitempty"`
+
 	// Conditions represent the current state of the ScalingGroup resource.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
