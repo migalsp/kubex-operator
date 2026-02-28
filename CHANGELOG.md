@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/migalsp/kubex-operator/compare/v1.2.0...v1.3.0) (2026-02-28)
+
+
+### Features
+
+* Introduce NamespaceOptimization CRD and enhance ScalingGroup with staged scaling sequences and new status fields, alongside corresponding UI and controller updates. ([56d4f03](https://github.com/migalsp/kubex-operator/commit/56d4f03dc6d4df921667cea6ba1237bdd5c6399c))
+
 ## [1.2.0](https://github.com/migalsp/kubex-operator/compare/v1.1.0...v1.2.0) (2026-02-27)
 
 
