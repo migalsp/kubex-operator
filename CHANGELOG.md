@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/migalsp/kubex-operator/compare/v1.3.0...v1.3.1) (2026-02-28)
+
+
+### Bug Fixes
+
+* fix scaling engine replica initialization, and enhance scaling group status synchronization. ([f6071ce](https://github.com/migalsp/kubex-operator/commit/f6071ce8ff445cbcea89c251e39def9eccc554e6))
+
 ## [1.3.0](https://github.com/migalsp/kubex-operator/compare/v1.2.0...v1.3.0) (2026-02-28)
 
 
