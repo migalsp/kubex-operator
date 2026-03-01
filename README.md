@@ -1,10 +1,27 @@
-# Kubex
+<h1 align="center">Kubex</h1>
 
-**Stop wasting money on empty pods. Start optimizing your Kubernetes clusters.**
+<p align="center">
+  <strong>Stop wasting money on empty pods. Start optimizing your Kubernetes clusters.</strong>
+</p>
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/migalsp/kubex-operator)](https://goreportcard.com/report/github.com/migalsp/kubex-operator)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Coverage](https://img.shields.io/codecov/c/github/migalsp/kubex-operator)](https://app.codecov.io/gh/migalsp/kubex-operator)
+<p align="center">
+  <a href="https://github.com/migalsp/Kubex/actions/workflows/ci.yml">
+    <img src="https://github.com/migalsp/Kubex/actions/workflows/ci.yml/badge.svg" alt="Build Status">
+  </a>
+  <a href="https://github.com/migalsp/Kubex/releases">
+    <img src="https://img.shields.io/github/v/release/migalsp/Kubex" alt="Latest Release">
+  </a>
+  <a href="https://goreportcard.com/report/github.com/migalsp/kubex-operator">
+    <img src="https://goreportcard.com/badge/github.com/migalsp/kubex-operator" alt="Go Report Card">
+  </a>
+  <a href="https://opensource.org/licenses/Apache-2.0">
+    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
+  </a>
+  <a href="https://app.codecov.io/gh/migalsp/kubex-operator">
+    <img src="https://img.shields.io/codecov/c/github/migalsp/kubex-operator" alt="Coverage">
+  </a>
+
+<br />
 
 **Kubex** is a lightweight Kubernetes Operator that automatically cuts cloud costs and simplifies resource management. It finds over-provisioned workloads, scales them down when not in use, and provides a beautiful real-time UI to manage it all.
 
