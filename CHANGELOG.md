@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/migalsp/kubex-operator/compare/v1.3.2...v1.3.3) (2026-03-01)
+
+
+### Bug Fixes
+
+* Add `readyNamespaces` to ScalingGroup CRD status and introduce initial Helm `values.yaml`. ([e8ad719](https://github.com/migalsp/kubex-operator/commit/e8ad71912046705c451dfbc3c8e2f7b8f9f72630))
+
 ## [1.3.2](https://github.com/migalsp/kubex-operator/compare/v1.3.1...v1.3.2) (2026-02-28)
 
 
