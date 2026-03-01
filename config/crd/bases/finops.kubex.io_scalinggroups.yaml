@@ -192,6 +192,12 @@ spec:
                 description: Phase is the current state of the group (ScaledUp, ScalingDown,
                   ScaledDown)
                 type: string
+              readyNamespaces:
+                description: ReadyNamespaces is the list of namespaces that are currently
+                  at their target state
+                items:
+                  type: string
+                type: array
             type: object
         required:
         - spec
