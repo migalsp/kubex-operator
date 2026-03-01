@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/migalsp/kubex-operator/compare/v1.3.3...v1.3.4) (2026-03-01)
+
+
+### Bug Fixes
+
+* Add missed Ingress support to the Kubex operator Helm chart with configurable values. ([2049f83](https://github.com/migalsp/kubex-operator/commit/2049f831de848aab4a5f2d4bd4657614d6fd31f5))
+
 ## [1.3.3](https://github.com/migalsp/kubex-operator/compare/v1.3.2...v1.3.3) (2026-03-01)
 
 
