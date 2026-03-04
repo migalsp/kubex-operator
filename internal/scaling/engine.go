@@ -152,24 +152,23 @@ func (e *Engine) ScaleTarget(ctx context.Context, ns string, active bool, sequen
 
 			// Target replicas for this object
 			var target int32
+			current := getReplicas(obj)
+
 			if !active {
 				target = 0
 			} else {
-				if t, ok := originalReplicas[key]; ok {
-					target = t
+				if current > 0 {
+					// Respect manual or HPA scaling that occurred during active state.
+					target = current
 				} else {
-					// BUGFIX: If we don't have a record of original replicas,
-					// don't force it to 1 if it's already higher.
-					current := getReplicas(obj)
-					if current > 0 {
-						target = current
+					if t, ok := originalReplicas[key]; ok {
+						target = t
 					} else {
+						// Fallback if no record of original replicas
 						target = 1
 					}
 				}
 			}
-
-			current := getReplicas(obj)
 			if current != target {
 				// Record original IF scaling down for the first time
 				if !active && current > 0 {
