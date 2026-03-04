@@ -68,10 +68,7 @@ func (e *Engine) IsActive(schedules []finopsv1.ScalingSchedule, manualActive *bo
 		}
 	}
 
-	// No schedules configured: use manual override or default to active
-	if manualActive != nil {
-		return *manualActive
-	}
+
 	return true // Default to active if no schedule and no manual override
 }
 
