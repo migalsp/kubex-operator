@@ -3,9 +3,26 @@
     ".": {
       "release-type": "go",
       "extra-files": [
-        "deploy/helm/kubex-operator/Chart.yaml",
-        "deploy/helm/kubex-operator/values.yaml",
-        "internal/api/openapi.yaml",
+        {
+          "type": "yaml",
+          "path": "deploy/helm/kubex-operator/Chart.yaml",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "yaml",
+          "path": "deploy/helm/kubex-operator/Chart.yaml",
+          "jsonpath": "$.appVersion"
+        },
+        {
+          "type": "yaml",
+          "path": "deploy/helm/kubex-operator/values.yaml",
+          "jsonpath": "$.image.tag"
+        },
+        {
+          "type": "yaml",
+          "path": "internal/api/openapi.yaml",
+          "jsonpath": "$.info.version"
+        },
         {
           "type": "json",
           "path": "ui/package.json",
