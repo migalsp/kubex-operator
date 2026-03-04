@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.5](https://github.com/migalsp/kubex-operator/compare/v1.3.4...v1.3.5) (2026-03-04)
+
+
+### Bug Fixes
+
+* Prioritize current replica count over stored original replicas when scaling up to respect manual or HPA adjustments. ([9da1600](https://github.com/migalsp/kubex-operator/commit/9da1600cbe3ad66ae3d0090f6634679321899a4f))
+
 ## [1.3.4](https://github.com/migalsp/kubex-operator/compare/v1.3.3...v1.3.4) (2026-03-01)
 
 
