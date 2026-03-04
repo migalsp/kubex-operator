@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.6](https://github.com/migalsp/kubex-operator/compare/v1.3.5...v1.3.6) (2026-03-04)
+
+
+### Bug Fixes
+
+* OpenTelemetry Go SDK Vulnerable to Arbitrary Code Execution via PATH Hijacking ([fcce651](https://github.com/migalsp/kubex-operator/commit/fcce651cfe30fb57c3b63e1bb9fc137a56f09fdf))
+* Set Secure flag for authentication cookies to ensure transmission over HTTPS. ([135e9ce](https://github.com/migalsp/kubex-operator/commit/135e9ce2c02802a75e931268e09dcbe62975e76e))
+
 ## [1.3.5](https://github.com/migalsp/kubex-operator/compare/v1.3.4...v1.3.5) (2026-03-04)
 
 
