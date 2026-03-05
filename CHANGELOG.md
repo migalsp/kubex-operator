@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/migalsp/kubex-operator/compare/v1.3.6...v1.4.0) (2026-03-05)
+
+
+### Features
+
+* implement external scaling for AWS resources with discovery API… ([#21](https://github.com/migalsp/kubex-operator/issues/21)) ([0e5ae60](https://github.com/migalsp/kubex-operator/commit/0e5ae603e752593a640218e2d748e96d37e2c7b5))
+
 ## [1.3.6](https://github.com/migalsp/kubex-operator/compare/v1.3.5...v1.3.6) (2026-03-04)
 
 
