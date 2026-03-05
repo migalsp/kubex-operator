@@ -9,8 +9,31 @@ image:
   tag: "1.0.0" # x-release-please-version
 
 serviceAccount:
+  # Specifies whether a service account should be created
   create: true
+  # Annotations to add to the service account (useful for AWS IRSA / Workload Identity)
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
   name: ""
+
+# Configuration for External 3rd Party Cloud Providers
+# This enables Kubex to auto-discover and scale external resources (like databases)
+# alongside your Kubernetes namespaces in a unified Execution Pipeline.
+providers:
+  # Enable AWS Provider to scale RDS/Aurora clusters.
+  aws:
+    enabled: false
+    # Region where your AWS RDS/Aurora clusters are located
+    region: "us-east-1"
+    # Provide IAM credentials here, OR leave empty and use IRSA (ServiceAccount annotations)
+    accessKeyId: ""
+    secretAccessKey: ""
+  gcp:
+    enabled: false
+    # projectId: ""
+  azure:
+    enabled: false
 
 service:
   type: ClusterIP
@@ -39,3 +62,9 @@ ingress:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

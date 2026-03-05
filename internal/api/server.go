@@ -22,6 +22,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	finopsv1 "github.com/migalsp/kubex-operator/api/v1"
+	"github.com/migalsp/kubex-operator/internal/scaling"
 )
 
 // Version is set at build time via ldflags
@@ -56,6 +57,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/scaling/groups/", s.handleScalingGroupActions)
 	mux.HandleFunc("/api/scaling/configs", s.handleScalingConfigs)
 	mux.HandleFunc("/api/scaling/configs/", s.handleScalingConfigActions)
+	mux.HandleFunc("/api/discovery/", s.handleDiscovery)
 	mux.HandleFunc("/api/version", s.handleVersion)
 	mux.HandleFunc("/api/cluster/nodes", s.handleClusterNodes)
 	mux.HandleFunc("/api/login", HandleLogin)
@@ -115,6 +117,47 @@ func (s *Server) handleNamespaces(w http.ResponseWriter, r *http.Request) {
 	logf.Log.Info("Found NamespaceFinOps", "count", len(list.Items))
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(list.Items)
+}
+
+func (s *Server) handleDiscovery(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	parts := strings.Split(r.URL.Path, "/")
+	// Expected path: /api/discovery/{provider}/{resourceType}
+	if len(parts) < 5 {
+		http.Error(w, "Invalid path format. Expected /api/discovery/{provider}/{type}", http.StatusBadRequest)
+		return
+	}
+
+	providerName := parts[3]
+	resourceType := parts[4]
+
+	// Currently only "aws" is implemented, but we design for extension
+	if providerName != "aws" {
+		http.Error(w, fmt.Sprintf("Provider '%s' not supported yet", providerName), http.StatusNotImplemented)
+		return
+	}
+
+	// Initialize Provider (ideally cached or part of engine)
+	awsProv, err := scaling.NewAWSProvider(r.Context())
+	if err != nil {
+		logf.Log.Error(err, "Failed to initialize AWS Discovery provider")
+		http.Error(w, "Cloud provider configuration error", http.StatusInternalServerError)
+		return
+	}
+
+	targets, err := awsProv.Discover(r.Context(), resourceType)
+	if err != nil {
+		logf.Log.Error(err, "Failed to discover resources", "provider", providerName, "type", resourceType)
+		http.Error(w, "Failed to discover external resources", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(targets)
 }
 
 func (s *Server) handleNamespaceRouting(w http.ResponseWriter, r *http.Request) {

@@ -9,12 +9,26 @@ import (
 
 	finopsv1 "github.com/migalsp/kubex-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Engine struct {
-	Client client.Client
+	Client    client.Client
+	Providers map[string]ExternalProvider
+}
+
+// ExternalProvider defines the interface for 3rd party cloud service scaling
+type ExternalProvider interface {
+	// Name returns the provider name (e.g. "aws", "gcp")
+	Name() string
+	// Scale sets the target state for a specific resource
+	Scale(ctx context.Context, target finopsv1.ExternalTarget, active bool) error
+	// IsReady checks if the target resource has reached the desired state
+	IsReady(ctx context.Context, target finopsv1.ExternalTarget, active bool) (bool, error)
+	// Discover returns a list of scalable targets in the environment
+	Discover(ctx context.Context, resourceType string) ([]finopsv1.ExternalTarget, error)
 }
 
 // IsActive checks if the namespace/group should be active based on schedules and manual override.
@@ -67,7 +81,6 @@ func (e *Engine) IsActive(schedules []finopsv1.ScalingSchedule, manualActive *bo
 			return false // Valid schedules exist but none are active now
 		}
 	}
-
 
 	return true // Default to active if no schedule and no manual override
 }
@@ -262,6 +275,18 @@ func (e *Engine) setReplicas(ctx context.Context, obj client.Object, count int32
 	return e.Client.Update(ctx, obj)
 }
 
+func (e *Engine) hasRemainingPods(ctx context.Context, ns string, matchLabels map[string]string) bool {
+	if len(matchLabels) == 0 {
+		return false
+	}
+	pods := &corev1.PodList{}
+	err := e.Client.List(ctx, pods, client.InNamespace(ns), client.MatchingLabels(matchLabels))
+	if err != nil {
+		return true // assume pods exist if we can't be sure
+	}
+	return len(pods.Items) > 0
+}
+
 func (e *Engine) isGroupReady(ctx context.Context, objs []client.Object, targetActive bool) bool {
 	for _, o := range objs {
 		// Refetch to get latest status
@@ -285,6 +310,9 @@ func (e *Engine) isGroupReady(ctx context.Context, objs []client.Object, targetA
 				if v.Status.ReadyReplicas > 0 || v.Status.Replicas > 0 {
 					return false
 				}
+				if v.Spec.Selector != nil && e.hasRemainingPods(ctx, v.GetNamespace(), v.Spec.Selector.MatchLabels) {
+					return false
+				}
 			}
 		case *appsv1.StatefulSet:
 			e.Client.Get(ctx, key, v)
@@ -301,6 +329,9 @@ func (e *Engine) isGroupReady(ctx context.Context, objs []client.Object, targetA
 				}
 			} else {
 				if v.Status.ReadyReplicas > 0 || v.Status.Replicas > 0 {
+					return false
+				}
+				if v.Spec.Selector != nil && e.hasRemainingPods(ctx, v.GetNamespace(), v.Spec.Selector.MatchLabels) {
 					return false
 				}
 			}
@@ -328,11 +359,15 @@ func (e *Engine) ComputePhase(ctx context.Context, ns string, targetActive bool)
 		if d.Spec.Replicas != nil {
 			replicas = *d.Spec.Replicas
 		}
-		if replicas == 0 {
-			zeroCount++
+		if replicas == 0 && d.Status.Replicas == 0 {
+			if d.Spec.Selector != nil && e.hasRemainingPods(ctx, ns, d.Spec.Selector.MatchLabels) {
+				runningCount++
+			} else {
+				zeroCount++
+			}
 		} else {
 			runningCount++
-			if d.Status.ReadyReplicas >= replicas {
+			if replicas > 0 && d.Status.ReadyReplicas >= replicas {
 				readyCount++
 			}
 		}
@@ -343,11 +378,15 @@ func (e *Engine) ComputePhase(ctx context.Context, ns string, targetActive bool)
 		if s.Spec.Replicas != nil {
 			replicas = *s.Spec.Replicas
 		}
-		if replicas == 0 {
-			zeroCount++
+		if replicas == 0 && s.Status.Replicas == 0 {
+			if s.Spec.Selector != nil && e.hasRemainingPods(ctx, ns, s.Spec.Selector.MatchLabels) {
+				runningCount++
+			} else {
+				zeroCount++
+			}
 		} else {
 			runningCount++
-			if s.Status.ReadyReplicas >= replicas {
+			if replicas > 0 && s.Status.ReadyReplicas >= replicas {
 				readyCount++
 			}
 		}
@@ -360,26 +399,17 @@ func (e *Engine) ComputePhase(ctx context.Context, ns string, targetActive bool)
 		return "ScaledDown"
 	}
 
+	if targetActive {
+		// We want everything up but some are still at 0 or not ready
+		if readyCount == totalResources {
+			return "ScaledUp"
+		}
+		return "ScalingUp"
+	}
+
+	// We want everything down
 	if zeroCount == totalResources {
 		return "ScaledDown"
 	}
-	if runningCount == totalResources && readyCount == totalResources {
-		return "ScaledUp"
-	}
-	// Mixed state
-	if targetActive {
-		// We want everything up but some are still at 0 or not ready
-		if zeroCount > 0 || readyCount < runningCount {
-			return "ScalingUp"
-		}
-		return "ScaledUp"
-	}
-	// We want everything down but some are still running
-	if runningCount > 0 && zeroCount > 0 {
-		return "ScalingDown"
-	}
-	if runningCount > 0 && zeroCount == 0 {
-		return "PartlyScaled"
-	}
-	return "ScaledDown"
+	return "ScalingDown"
 }
