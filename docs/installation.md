@@ -21,7 +21,7 @@ Before installing Kubex, ensure you have:
 
 ## Installation Strategy
 
-Kubex is distributed as an OCI-compliant Helm chart hosted directly on GitHub Container Registry (GHCR).
+Kubex is distributed as an OCI-compliant Helm chart hosted directly on GitHub Container Registry.
 
 ### Step 1: Create Namespace
 It is highly recommended to install Kubex in its own dedicated namespace.
@@ -77,6 +77,42 @@ resources:
   requests:
     cpu: 250m
     memory: 256Mi
+
+# Enable AWS Provider for 3rd Party Cloud Database Scaling (e.g. Amazon Aurora)
+providers:
+  aws:
+    enabled: true
+    region: "us-east-1"
+    # Option A: Provide explicit IAM credentials
+    accessKeyId: "AKIA..."
+    secretAccessKey: "..."
+    # Option B (Recommended): Leave keys blank and use serviceAccount.annotations for AWS IRSA
+
+# Node Scheduling Configuration
+nodeSelector:
+  kubernetes.io/os: linux
+  # type: infra
+
+tolerations:
+  - key: "CriticalAddonsOnly"
+    operator: "Exists"
+
+# Ingress Configuration (Expose Dashboard)
+ingress:
+  enabled: true
+  className: "nginx" # or alb, traefik, etc.
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: kubex.your-company.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: kubex-tls-secret
+      hosts:
+        - kubex.your-company.com
 ```
 
 Apply your overrides during installation:

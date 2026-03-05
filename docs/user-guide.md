@@ -1,6 +1,6 @@
 # Kubex User Guide & Feature Reference
 
-Welcome to the **Kubex Operator** user guide. This document explains how to use Kubex's powerful UI dashboard and Custom Resource Definitions (CRDs) to achieve automated FinOps and intelligent environment scaling in your Kubernetes clusters.
+Welcome to the **Kubex Operator** user guide. This document explains how to use Kubex's powerful UI dashboard and СRDs to achieve automated FinOps and intelligent environment scaling in your Kubernetes clusters.
 
 ---
 
@@ -76,26 +76,36 @@ Why pay for Dev or Staging environments over the weekend? Kubex automatically sc
 
 #### Configuring Individual Namespaces
 
-1. Find the target namespace you want to schedule.
-2. Click the **Configure Schedule** (calendar icon) next to it.
+1. Find the target namespace you want to schedule in the **Namespaces** list.
+2. Click the **+** (Plus) icon next to it to open the Configuration Modal.
 3. Define the active days, active hours, and your specific **Timezone**.
-4. Check the **Enable Schedule** toggle to activate it.
-5. Click **Save**.
+4. Expand the **Namespaces & Stages** section. For an individual namespace, this allows you to define an **Internal Execution Pipeline**. You can group specific pods/microservices inside the namespace into stages to ensure strict boot ordering (e.g., start the local Redis pod before the API pod).
+5. Check the **Enable** toggle to activate it.
+6. Click **Save**.
 
 *Note: You can instantly manually scale a namespace up or down (bypassing the schedule) by clicking the **Scale Down** or **Scale Up** buttons in the UI.*
 
-#### Creating Scaling Groups
+#### Creating Scaling Groups & Sequences
 
-For large clusters with hundreds of namespaces, managing individual schedules is tedious. Instead, you can group them.
+For large clusters with hundreds of namespaces, managing individual schedules is tedious. Instead, you can group them and define **Scaling Sequences**.
 
 1. Click the **Create Scaling Group** button at the top of the Workload Scaling dashboard.
 2. Define a **Category Name** (e.g., "Non-Prod").
-3. Select multiple target namespaces from the dropdown that should belong to this group.
-4. Set your active days, active hours, and specify your timezone.
-5. Click **Save Group**.
+3. Set your active days, active hours, and specify your timezone.
+4. Expand the **Namespaces & Stages** section to configure the execution pipeline.
+5. **Drag and Drop**: Pick available namespaces and drop them into execution 'Stages'. Applications in the same Stage scale concurrently. Stage 1 must complete fully before Stage 2 begins, ensuring strict boot order (e.g., Databases -> Backend -> Frontend).
+6. Click **Save Group**.
 
-**Conflict Resolution Note:**
-If a namespace belongs to a Scaling Group, the Group logic **always** wins. Any individual schedule applied to that namespace will be overridden, and its status in the UI will display as `OverriddenByGroup`.
+#### Scaling 3rd-Party Cloud Databases (AWS Aurora)
+
+Kubex can orchestrate the pausing and resuming of external Managed Cloud Services alongside your Kubernetes cluster workloads, drastically lowering cloud provider bills.
+
+1. Ensure the `aws` provider is enabled in your `values.yaml` with the correct region and IAM credentials/roles.
+2. In the **Namespaces & Stages** pipeline builder, switch the dropdown from 'Namespaces' to 'AWS Aurora Clusters'.
+3. Kubex will automatically discover your active RDS/Aurora clusters. Drag and drop these databases into the pipeline (usually as Stage 1 to ensure they are up before your apps boot).
+
+**Hierarchy & Resolution Note:**
+If a namespace is managed by a **Scaling Group**, the Group controls **when** the namespace activates or deactivates (the schedule). However, you can still click the `+` button on that namespace to define a `ScalingConfig`. In this scenario, the individual configuration is used strictly to define the **internal pod boot sequence** for that namespace, while deferring the activation schedule to its parent Group.
 
 *(Under the hood, the Kubex dashboard seamlessly creates and updates `ScalingConfig` and `ScalingGroup` Custom Resources on your behalf, eliminating the need to write and apply YAML manifests manually!)*
 
@@ -115,7 +125,7 @@ The API is secured using a dynamically generated password stored in a Kubernetes
    ```
 2. **Login via API:**
    ```bash
-   curl -X POST http://localhost:8082/api/login \
+   curl -X POST http://<kubex-operator-url>:8082/api/login \
      -H 'Content-Type: application/json' \
      -d '{"username":"kubex-admin", "password":"<your-password>"}'
    ```
@@ -125,12 +135,12 @@ The API is secured using a dynamically generated password stored in a Kubernetes
 
 Explore the full interactive **OpenAPI 3.0 Documentation** by navigating to:
 - **In-App:** Click the `API Reference` tab in the the Kubex sidebar.
-- **Swagger UI:** Visit `http://localhost:8082/api/docs` in your browser.
+- **Swagger UI:** Visit `http://<kubex-operator-url>:8082/api/docs` in your browser.
 
 ---
 
 ## Limitations & Best Practices
 
-1. **System Namespaces**: Kubex is hardcoded to **ignore** scaling operations on critical system namespaces (e.g., `kube-system`, `kubex`, `cert-manager`). Do not attempt to optimize or scale the control plane.
+1. **System Namespaces**: Kubex is hardcoded to **ignore** scaling operations on critical system namespaces (e.g., `kube-system`, `kubex`). Do not attempt to optimize or scale the control plane.
 2. **Metrics Server Dependency**: If the Kubernetes Metrics Server crashes or goes offline, the UI will degrade gracefully, but Optimization features will be temporarily unavailable until metrics are restored.
 3. **Init Containers / Replica Preservation**: If you scale down a Deployment that originally had 3 replicas, when the schedule wakes it back up, Kubex intelligently remembers and restores it to exactly 3 replicas, not 1.

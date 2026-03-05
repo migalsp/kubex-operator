@@ -140,6 +140,73 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		for _, ns := range stage {
 			managedCount++
 
+			// Handle External Targets embedded in the sequence
+			if strings.HasPrefix(ns, "ext:") {
+				extId := strings.TrimPrefix(ns, "ext:")
+				var extTarget *finopsv1.ExternalTarget
+				for i := range group.Spec.ExternalTargets {
+					if group.Spec.ExternalTargets[i].Identifier == extId {
+						extTarget = &group.Spec.ExternalTargets[i]
+						break
+					}
+				}
+
+				if extTarget == nil {
+					l.Info("External target in sequence not found in spec", "target", extId)
+					continue
+				}
+
+				provider, ok := r.Engine.Providers[extTarget.Provider]
+				if !ok {
+					l.Error(fmt.Errorf("provider not found"), "cannot scale external target", "target", extTarget.Identifier)
+					stageReady = false
+					allReady = false
+					// check if not already in blocking string
+					found := false
+					for _, b := range blockingNamespaces {
+					    if b == ns { found = true; break }
+					}
+					if !found { blockingNamespaces = append(blockingNamespaces, ns) }
+					continue
+				}
+
+				if err := provider.Scale(ctx, *extTarget, targetActive); err != nil {
+					l.Error(err, "failed to scale external target", "target", extTarget.Identifier)
+					stageReady = false
+					allReady = false
+					found := false
+					for _, b := range blockingNamespaces {
+					    if b == ns { found = true; break }
+					}
+					if !found { blockingNamespaces = append(blockingNamespaces, ns) }
+					continue
+				}
+
+				isRdy, err := provider.IsReady(ctx, *extTarget, targetActive)
+				if err != nil {
+					l.Error(err, "failed to check readiness of external target", "target", extTarget.Identifier)
+					stageReady = false
+					allReady = false
+					found := false
+					for _, b := range blockingNamespaces {
+					    if b == ns { found = true; break }
+					}
+					if !found { blockingNamespaces = append(blockingNamespaces, ns) }
+				} else if !isRdy {
+					stageReady = false
+					allReady = false
+					found := false
+					for _, b := range blockingNamespaces {
+					    if b == ns { found = true; break }
+					}
+					if !found { blockingNamespaces = append(blockingNamespaces, ns) }
+				} else {
+					namespacesReady++
+					readyNamespaces = append(readyNamespaces, ns)
+				}
+				continue
+			}
+
 			// a. Fetch individual ScalingConfig for exclusions and sequence inheritance
 			var exclusions []string
 			var nsSequence []string
@@ -249,7 +316,7 @@ func (r *ScalingGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if namespacesReady > group.Status.NamespacesReady {
-		r.Recorder.Eventf(group, "Normal", "ScalingProgress", "Progress updated: %d of %d namespaces reached target state.", namespacesReady, namespacesTotal)
+		r.Recorder.Eventf(group, "Normal", "ScalingProgress", "Progress updated: %d of %d targets reached target state.", namespacesReady, namespacesTotal)
 	}
 
 	// 5. Update Status
@@ -301,6 +368,19 @@ func (r *ScalingGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.Engine == nil {
 		r.Engine = &scaling.Engine{Client: r.Client}
 	}
+	if r.Engine.Providers == nil {
+		r.Engine.Providers = make(map[string]scaling.ExternalProvider)
+	}
+
+	// Initialize AWS Provider (this relies on the Pod having IRSA or environment variables set)
+	awsProv, err := scaling.NewAWSProvider(context.Background())
+	if err == nil {
+		r.Engine.Providers[awsProv.Name()] = awsProv
+		logf.Log.Info("Successfully initialized external provider", "provider", awsProv.Name())
+	} else {
+		logf.Log.Error(err, "Failed to initialize AWS Provider, external targets for AWS will not work")
+	}
+
 	r.Recorder = mgr.GetEventRecorderFor("scalinggroup-controller")
 
 	return ctrl.NewControllerManagedBy(mgr).

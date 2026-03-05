@@ -48,6 +48,38 @@ type ScalingGroupSpec struct {
 	// +optional
 	// +listType=atomic
 	Sequence []string `json:"sequence,omitempty"`
+
+	// ExternalTargets allows you to manage 3rd party cloud resources alongside Kubernetes resources.
+	// +optional
+	// +listType=atomic
+	ExternalTargets []ExternalTarget `json:"externalTargets,omitempty"`
+}
+
+// ExternalTarget represents a 3rd party resource to scale
+type ExternalTarget struct {
+	// Provider is the cloud provider (e.g., "aws", "gcp", "azure")
+	// +kubebuilder:validation:Required
+	Provider string `json:"provider"`
+
+	// Type of the resource (e.g., "aurora", "cloudsql")
+	// +kubebuilder:validation:Required
+	Type string `json:"type"`
+
+	// Identifier is the unique ID or ARN of the resource
+	// +kubebuilder:validation:Required
+	Identifier string `json:"identifier"`
+
+	// Region where the resource resides
+	// +kubebuilder:validation:Required
+	Region string `json:"region"`
+
+	// ExecuteAfter specifies which namespace stage this resource should scale after
+	// +optional
+	ExecuteAfter string `json:"executeAfter,omitempty"`
+
+	// Status tells you if the DB is available or stopped (populated at runtime by UI/Discovery API)
+	// +optional
+	Status string `json:"status,omitempty"`
 }
 
 // ScalingGroupStatus defines the observed state of ScalingGroup.

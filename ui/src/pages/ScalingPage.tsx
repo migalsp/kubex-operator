@@ -8,7 +8,11 @@ import {
   Settings2,
   LayoutGrid,
   Layers,
-  CalendarClock
+  CalendarClock,
+  Cloud,
+  Database,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 import ScalingConfigModal from '../components/ScalingConfigModal'
 import ScalingPipelineModal from '../components/ScalingPipelineModal'
@@ -75,6 +79,20 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
   const [deletingGroupName, setDeletingGroupName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isScalingMap, setIsScalingMap] = useState<Record<string, boolean>>({});
+
+  // Section Collapse State
+  const [namespacesCollapsed, setNamespacesCollapsed] = useState(false);
+  const [databasesCollapsed, setDatabasesCollapsed] = useState(false);
+
+  // External Targets
+  const [availableAuroraClusters, setAvailableAuroraClusters] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/discovery/aws/aurora')
+      .then(res => res.json())
+      .then(data => setAvailableAuroraClusters(data || []))
+      .catch(err => console.error("Failed to fetch Aurora clusters", err));
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -557,32 +575,106 @@ const ScalingPage: React.FC<{ onSelectNamespace: (ns: string) => void }> = ({ on
               </div>
               <h2 className="text-xl font-bold text-slate-700">Namespaces</h2>
               <div className="h-px flex-1 bg-slate-200/60 ml-2" />
+              <button onClick={() => setNamespacesCollapsed(!namespacesCollapsed)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title={namespacesCollapsed ? "Expand" : "Collapse"}>
+                {namespacesCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+              </button>
             </div>
-            {namespaces.length === 0 ? (
-              <div className="h-32 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">Loading namespaces...</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {policies.map(config => (
-                  <ConfigCard key={config.metadata.name} config={config} />
-                ))}
-                {namespaces.filter(ns => !groups.some(g => g.spec.namespaces.includes(ns)) && !policies.some(p => p.spec.targetNamespace === ns)).map(ns => (
-                  <div key={ns} className="bg-white border border-dashed border-slate-200 rounded-2xl p-4 flex items-center justify-between group hover:border-indigo-300 hover:shadow-sm transition-all cursor-pointer"
-                    onClick={() => handleCreateIndividualConfig(ns)}
-                    title="Click to enable scaling control for this namespace">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors shrink-0">
-                        <Layers size={20} />
+            
+            {!namespacesCollapsed && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                {namespaces.length === 0 ? (
+                  <div className="h-32 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">Loading namespaces...</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {policies.map(config => (
+                      <ConfigCard key={config.metadata.name} config={config} />
+                    ))}
+                    {namespaces.map(ns => {
+                      const managedByGroup = groups.find(g => g.spec.namespaces?.includes(ns));
+                      const hasIndividualConfig = policies.some(p => p.spec.targetNamespace === ns);
+                      if (hasIndividualConfig) return null; // Handled in ConfigCard
+
+                      return (
+                      <div key={ns} className={`bg-white border rounded-2xl p-4 flex items-center justify-between group transition-all cursor-pointer ${managedByGroup ? 'border-indigo-100 hover:border-indigo-300' : 'border-dashed border-slate-200 hover:border-indigo-300'} hover:shadow-sm`}
+                        onClick={() => handleCreateIndividualConfig(ns)}
+                        title={managedByGroup ? `Click to override sequence/exclusions for ${ns}` : "Click to enable scaling control for this namespace"}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0 ${managedByGroup ? 'bg-indigo-50 text-indigo-500' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}>
+                            <Layers size={20} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className={`font-bold transition-colors whitespace-nowrap overflow-hidden text-ellipsis ${managedByGroup ? 'text-indigo-900' : 'text-slate-400 group-hover:text-slate-700'}`}>{ns}</span>
+                            <span className={`text-[11px] font-bold uppercase tracking-wider transition-colors ${managedByGroup ? 'text-indigo-400' : 'text-slate-300 group-hover:text-indigo-400'}`}>
+                              {managedByGroup ? `Managed by ${managedByGroup.metadata.name}` : 'Unmanaged'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${managedByGroup ? 'bg-indigo-50 group-hover:bg-indigo-100' : 'bg-slate-50 group-hover:bg-indigo-50'}`}>
+                          <Plus size={16} className={`transition-colors ${managedByGroup ? 'text-indigo-400 group-hover:text-indigo-600' : 'text-slate-300 group-hover:text-indigo-500'}`} />
+                        </div>
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-slate-400 group-hover:text-slate-700 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">{ns}</span>
-                        <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider group-hover:text-indigo-400 transition-colors">Unmanaged</span>
-                      </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 group-hover:bg-indigo-50 transition-colors shrink-0">
-                      <Plus size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                    </div>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Public Cloud Managed Services Section */}
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-amber-500/10 text-amber-500 rounded-lg flex items-center justify-center">
+                <Cloud size={18} />
+              </div>
+              <h2 className="text-xl font-bold text-slate-700">Public Cloud Managed Services</h2>
+              <div className="h-px flex-1 bg-slate-200/60 ml-2" />
+              <button onClick={() => setDatabasesCollapsed(!databasesCollapsed)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title={databasesCollapsed ? "Expand" : "Collapse"}>
+                {databasesCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+              </button>
+            </div>
+
+            {!databasesCollapsed && (
+              <div className="mb-8 animate-in slide-in-from-top-2 fade-in duration-200">
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Databases</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {availableAuroraClusters.length === 0 ? (
+                    <div className="col-span-full border border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-slate-400">
+                      <p className="font-medium text-sm">No databases discovered.</p>
+                      <p className="text-xs mt-1">Ensure AWS provider is enabled and configured correctly.</p>
+                    </div>
+                  ) : (
+                    availableAuroraClusters.map((cluster, i) => (
+                      <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col group hover:border-amber-300 hover:shadow-sm transition-all cursor-default relative overflow-hidden">
+                        {cluster.executeAfter && (
+                           <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-[9px] font-black px-2 py-0.5 rounded-bl-lg uppercase">
+                             Managed
+                           </div>
+                        )}
+                        <div className="flex items-center gap-3 min-w-0 mb-3 mt-1">
+                          <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg" alt="AWS" className="w-5 opacity-60 grayscale group-hover:grayscale-0 transition-all" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-slate-700 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{cluster.identifier}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">{cluster.type}</span>
+                              {cluster.status && (
+                                <span className={`flex items-center gap-1 text-[10px] font-bold uppercase ${cluster.status === 'available' ? 'text-emerald-500' : cluster.status === 'stopped' ? 'text-rose-500' : 'text-amber-500'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${cluster.status === 'available' ? 'bg-emerald-500 animate-pulse' : cluster.status === 'stopped' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'}`}></span>
+                                  {cluster.status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                          <Database size={12} className="opacity-50" /> Region: <span className="text-slate-700">{cluster.region}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </section>

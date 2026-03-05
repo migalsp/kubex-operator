@@ -211,10 +211,16 @@ const ScalingPipelineModal: React.FC<ScalingPipelineModalProps> = ({ group, onCl
                         if (isNSReady) nsStatus = 'done';
                         else if (isStageRunning) nsStatus = 'in-progress';
 
+                        const isExt = ns.startsWith('ext:');
+                        const extName = isExt ? ns.slice(4) : ns;
+
                         return (
                           <div key={ns} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${nsStatus === 'pending' ? 'bg-slate-50/50' : (nsStatus === 'done' ? 'bg-emerald-50/50' : 'bg-amber-50/50')}`}>
                             <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${nsStatus === 'pending' ? 'bg-slate-200' : (nsStatus === 'done' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse')}`} />
-                            <span className={`text-sm font-medium truncate ${nsStatus === 'pending' ? 'text-slate-400' : 'text-slate-600'}`} title={ns}>{ns}</span>
+                            <span className={`text-sm font-medium truncate flex-1 ${nsStatus === 'pending' ? 'text-slate-400' : (nsStatus === 'done' ? 'text-emerald-700' : 'text-amber-700')}`} title={extName}>{extName}</span>
+                            {isExt && (
+                              <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg" alt="AWS" className={`w-4 shrink-0 transition-opacity ${nsStatus === 'pending' ? 'opacity-30 grayscale' : 'opacity-70'}`} />
+                            )}
                           </div>
                         );
                       })}

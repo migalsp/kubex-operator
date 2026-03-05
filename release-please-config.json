@@ -4,24 +4,16 @@
       "release-type": "go",
       "extra-files": [
         {
-          "type": "yaml",
-          "path": "deploy/helm/kubex-operator/Chart.yaml",
-          "jsonpath": "$.version"
+          "type": "generic",
+          "path": "deploy/helm/kubex-operator/Chart.yaml"
         },
         {
-          "type": "yaml",
-          "path": "deploy/helm/kubex-operator/Chart.yaml",
-          "jsonpath": "$.appVersion"
+          "type": "generic",
+          "path": "deploy/helm/kubex-operator/values.yaml"
         },
         {
-          "type": "yaml",
-          "path": "deploy/helm/kubex-operator/values.yaml",
-          "jsonpath": "$.image.tag"
-        },
-        {
-          "type": "yaml",
-          "path": "internal/api/openapi.yaml",
-          "jsonpath": "$.info.version"
+          "type": "generic",
+          "path": "internal/api/openapi.yaml"
         },
         {
           "type": "json",

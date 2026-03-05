@@ -35,6 +35,7 @@ Relying on static, guesswork-based CPU and memory limits across hundreds of micr
 
 - 📉 **Save Money:** Automatically identify namespaces that request too much CPU/Memory and right-size them with a single click.
 - ⏰ **Night & Weekend Savings:** Shut down Dev and Staging environments automatically outside of working hours using simple CRDs (`ScalingConfig` & `ScalingGroup`).
+- ☁️ **Cloud Database Scaling:** Stop paying for idle AWS RDS/Aurora databases by orchestrating their scaling alongside your Kubernetes workloads.
 - 🗺️ **Visual Capacity Planning:** Instantly see which cluster nodes are burning hot (>90%) and which are sitting empty (<50%).
 - 🛡️ **Zero Risk:** Revert optimization changes instantly if a workload underperforms.
 
