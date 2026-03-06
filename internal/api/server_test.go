@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	finopsv1 "github.com/migalsp/kubex-operator/api/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -128,5 +130,274 @@ func TestHandleNamespaces(t *testing.T) {
 
 	if len(parsed) != 1 || parsed[0].Name != "test-ns" {
 		t.Errorf("expected 1 namespace, got %v", parsed)
+	}
+}
+
+func TestHandleDiscovery(t *testing.T) {
+	server := buildMockServerWithK8s()
+
+	// Test 1: Unsupported provider
+	req, _ := http.NewRequest("GET", "/api/discovery/gcp/aurora", nil)
+	rr := httptest.NewRecorder()
+	server.handleDiscovery(rr, req)
+	if rr.Code != http.StatusNotImplemented {
+		t.Errorf("expected 501 Not Implemented for gcp, got %v", rr.Code)
+	}
+
+	// Test 2: AWS disabled
+	os.Setenv("AWS_PROVIDER_ENABLED", "false")
+	defer os.Unsetenv("AWS_PROVIDER_ENABLED")
+
+	req, _ = http.NewRequest("GET", "/api/discovery/aws/aurora", nil)
+	rr = httptest.NewRecorder()
+	server.handleDiscovery(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for disabled AWS, got %v", rr.Code)
+	}
+
+	var parsed []interface{}
+	if err := json.NewDecoder(rr.Body).Decode(&parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed) != 0 {
+		t.Errorf("expected empty array for disabled AWS, got %v", parsed)
+	}
+}
+
+func TestServeHistory(t *testing.T) {
+	os.Setenv("POD_NAMESPACE", "kubex")
+	defer os.Unsetenv("POD_NAMESPACE")
+
+	server := buildMockServerWithK8s()
+
+	ns := &finopsv1.NamespaceFinOps{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-ns", Namespace: "kubex"},
+		Status: finopsv1.NamespaceFinOpsStatus{
+			History: []finopsv1.MetricDataPoint{
+				{Timestamp: metav1.Now(), CPU: finopsv1.ResourceMetrics{Usage: "100m"}},
+			},
+		},
+	}
+	server.Client.Create(context.Background(), ns)
+
+	req, _ := http.NewRequest("GET", "/api/namespaces/test-ns/history", nil)
+	rr := httptest.NewRecorder()
+	server.handleNamespaceRouting(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %v", rr.Code)
+	}
+
+	var parsed []finopsv1.MetricDataPoint
+	if err := json.NewDecoder(rr.Body).Decode(&parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed) != 1 || parsed[0].CPU.Usage != "100m" {
+		t.Errorf("expected history data, got %v", parsed)
+	}
+}
+
+func TestServePods(t *testing.T) {
+	server := buildMockServerWithK8s()
+
+	req, _ := http.NewRequest("GET", "/api/namespaces/test-ns/pods", nil)
+	rr := httptest.NewRecorder()
+	server.handleNamespaceRouting(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %v", rr.Code)
+	}
+
+	var parsed []PodDetail
+	if err := json.NewDecoder(rr.Body).Decode(&parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed) != 0 {
+		t.Errorf("expected 0 pods, got %d", len(parsed))
+	}
+}
+
+func TestServeWorkloads(t *testing.T) {
+	server := buildMockServerWithK8s()
+
+	req, _ := http.NewRequest("GET", "/api/namespaces/test-ns/workloads", nil)
+	rr := httptest.NewRecorder()
+	server.handleNamespaceRouting(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %v", rr.Code)
+	}
+
+	var parsed []WorkloadDetail
+	if err := json.NewDecoder(rr.Body).Decode(&parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed) != 0 {
+		t.Errorf("expected 0 workloads, got %d", len(parsed))
+	}
+}
+
+func TestHandleNamespaceOptimize(t *testing.T) {
+	os.Setenv("POD_NAMESPACE", "kubex")
+	defer os.Unsetenv("POD_NAMESPACE")
+
+	server := buildMockServerWithK8s()
+
+	// Pre-create the required finops object
+	nsFinOps := &finopsv1.NamespaceFinOps{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-ns", Namespace: "kubex"},
+		Status: finopsv1.NamespaceFinOpsStatus{
+			History: []finopsv1.MetricDataPoint{
+				{Timestamp: metav1.Now(), CPU: finopsv1.ResourceMetrics{Usage: "100m"}},
+			},
+		},
+	}
+	server.Client.Create(context.Background(), nsFinOps)
+
+	req, _ := http.NewRequest("POST", "/api/namespaces/test-ns/optimize", nil)
+	rr := httptest.NewRecorder()
+	server.handleNamespaceRouting(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 InternalsServerError when no metrics client exists, got %v", rr.Code)
+	}
+}
+
+func TestHandleNamespaceRevert(t *testing.T) {
+	os.Setenv("POD_NAMESPACE", "kubex")
+	defer os.Unsetenv("POD_NAMESPACE")
+
+	server := buildMockServerWithK8s()
+
+	// Pre-create the required finops object
+	opt := &finopsv1.NamespaceOptimization{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-ns", Namespace: "kubex"},
+		Status: finopsv1.NamespaceOptimizationStatus{
+			Workloads: []finopsv1.WorkloadOptimization{
+				{
+					Name: "test-deploy",
+					Kind: "Deployment",
+					Original: finopsv1.ResourceValues{
+						CPURequest: "100m",
+					},
+				},
+			},
+		},
+	}
+	server.Client.Create(context.Background(), opt)
+
+	req, _ := http.NewRequest("POST", "/api/namespaces/test-ns/revert", nil)
+	rr := httptest.NewRecorder()
+	server.handleNamespaceRouting(rr, req)
+
+	// Will likely return Ok as finding no deployment gracefully skips
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %v", rr.Code)
+	}
+}
+
+func TestHandleScalingGroups(t *testing.T) {
+	os.Setenv("POD_NAMESPACE", "kubex")
+	defer os.Unsetenv("POD_NAMESPACE")
+
+	server := buildMockServerWithK8s()
+
+	group := &finopsv1.ScalingGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-group", Namespace: "kubex"},
+		Spec: finopsv1.ScalingGroupSpec{
+			Active: new(bool),
+		},
+	}
+	server.Client.Create(context.Background(), group)
+
+	req, _ := http.NewRequest("GET", "/api/scaling/groups", nil)
+	rr := httptest.NewRecorder()
+	server.handleScalingGroups(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %v", rr.Code)
+	}
+
+	var parsed []finopsv1.ScalingGroup
+	if err := json.NewDecoder(rr.Body).Decode(&parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed) != 1 || parsed[0].Name != "test-group" {
+		t.Errorf("expected 1 scaling group, got %v", len(parsed))
+	}
+}
+
+func TestHandleScalingConfigs(t *testing.T) {
+	os.Setenv("POD_NAMESPACE", "kubex")
+	defer os.Unsetenv("POD_NAMESPACE")
+
+	server := buildMockServerWithK8s()
+
+	config := &finopsv1.ScalingConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-config", Namespace: "kubex"},
+		Spec: finopsv1.ScalingConfigSpec{
+			Active: new(bool),
+		},
+	}
+	server.Client.Create(context.Background(), config)
+
+	req, _ := http.NewRequest("GET", "/api/scaling/configs", nil)
+	rr := httptest.NewRecorder()
+	server.handleScalingConfigs(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %v", rr.Code)
+	}
+
+	var parsed []finopsv1.ScalingConfig
+	if err := json.NewDecoder(rr.Body).Decode(&parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed) != 1 || parsed[0].Name != "test-config" {
+		t.Errorf("expected 1 scaling config, got %v", len(parsed))
+	}
+}
+
+func TestHandleClusterNodes(t *testing.T) {
+	server := buildMockServerWithK8s()
+
+	// Add a dummy node
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-node"},
+		Status: corev1.NodeStatus{
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+			Conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+			},
+			NodeInfo: corev1.NodeSystemInfo{
+				OSImage:        "Ubuntu",
+				Architecture:   "amd64",
+				KernelVersion:  "5.15",
+				KubeletVersion: "v1.28.0",
+			},
+		},
+	}
+	server.K8sClient.CoreV1().Nodes().Create(context.Background(), node, metav1.CreateOptions{})
+
+	req, _ := http.NewRequest("GET", "/api/cluster/nodes", nil)
+	rr := httptest.NewRecorder()
+	server.handleClusterNodes(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %v", rr.Code)
+	}
+
+	var parsed map[string]interface{}
+	if err := json.NewDecoder(rr.Body).Decode(&parsed); err != nil {
+		t.Fatal(err)
+	}
+
+	nodes, ok := parsed["nodes"].([]interface{})
+	if !ok || len(nodes) != 1 {
+		t.Errorf("expected 1 node in response, got %v", parsed)
 	}
 }

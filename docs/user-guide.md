@@ -100,7 +100,7 @@ For large clusters with hundreds of namespaces, managing individual schedules is
 
 Kubex can orchestrate the pausing and resuming of external Managed Cloud Services alongside your Kubernetes cluster workloads, drastically lowering cloud provider bills.
 
-1. Ensure the `aws` provider is enabled in your `values.yaml` with the correct region and IAM credentials/roles.
+1. Ensure the `aws` provider is enabled in your `values.yaml` (`providers.aws.enabled: true`) with the correct region and IAM credentials/roles. (If `false`, the operator entirely skips AWS discovery and any EC2 IMDS lookups).
 2. In the **Namespaces & Stages** pipeline builder, switch the dropdown from 'Namespaces' to 'AWS Aurora Clusters'.
 3. Kubex will automatically discover your active RDS/Aurora clusters. Drag and drop these databases into the pipeline (usually as Stage 1 to ensure they are up before your apps boot).
 
