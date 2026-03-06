@@ -1044,12 +1044,6 @@ func (s *Server) handleNamespaceOptimize(w http.ResponseWriter, r *http.Request,
 			http.Error(w, "Failed to create optimization record: "+createErr.Error(), http.StatusInternalServerError)
 			return
 		}
-		// Re-fetch to get the server-assigned ResourceVersion
-		if getErr := s.Client.Get(ctx, client.ObjectKey{Name: nsName, Namespace: operatorNs}, opt); getErr != nil {
-			logf.Log.Error(getErr, "Failed to re-fetch NamespaceOptimization after create", "namespace", nsName)
-			http.Error(w, "Failed to re-fetch optimization record: "+getErr.Error(), http.StatusInternalServerError)
-			return
-		}
 	}
 
 	// Now update the status subresource separately (this is required because
