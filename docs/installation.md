@@ -79,6 +79,7 @@ resources:
     memory: 256Mi
 
 # Enable AWS Provider for 3rd Party Cloud Database Scaling (e.g. Amazon Aurora)
+# (If `enabled: false`, the operator will not attempt to discover AWS resources or query the EC2 IMDS metadata service)
 providers:
   aws:
     enabled: true

@@ -141,6 +141,12 @@ func (s *Server) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if os.Getenv("AWS_PROVIDER_ENABLED") != "true" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
+	}
+
 	// Initialize Provider (ideally cached or part of engine)
 	awsProv, err := scaling.NewAWSProvider(r.Context())
 	if err != nil {
