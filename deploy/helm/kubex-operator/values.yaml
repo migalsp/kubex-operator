@@ -3,10 +3,10 @@ replicaCount: 1
 fullnameOverride: "kubex-operator"
 
 image:
-  repository: ghcr.io/migalsp/kubex/kubex-operator
+  repository: ghcr.io/migalsp/kubex-operator/kubex-operator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "1.4.0" # x-release-please-version
+  tag: "1.4.1" # x-release-please-version
 
 serviceAccount:
   # Specifies whether a service account should be created
