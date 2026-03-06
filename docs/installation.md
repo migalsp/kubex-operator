@@ -34,11 +34,11 @@ Install the operator directly from the OCI registry. This eliminates the need to
 
 ```bash
 helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator \
-  --version v1.0.0 \
+  --version 1.0.0 \
   --namespace kubex
 ```
 
-*(Note: Replace `v1.0.0` with the latest release tag found on the GitHub Releases page).*
+*(Note: Replace `1.0.0` with the latest release tag found on the GitHub Releases page).*
 
 ### Step 3: Verify Deployment
 Ensure the operator pod is running and healthy:
@@ -56,7 +56,7 @@ Kubex ships with sane defaults, requiring minimal resource requests (100m CPU / 
 
 To view default values:
 ```bash
-helm show values oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator --version v1.0.0
+helm show values oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator --version 1.0.0
 ```
 
 **Common Overrides (`my-values.yaml`):**
@@ -68,7 +68,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/migalsp/kubex-operator/kubex-operator
   pullPolicy: IfNotPresent
-  tag: "v1.0.0"
+  tag: "1.0.0"
 
 resources:
   limits:
@@ -119,7 +119,7 @@ ingress:
 Apply your overrides during installation:
 ```bash
 helm upgrade --install kubex-operator oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator \
-  --version v1.0.0 \
+  --version 1.0.0 \
   --namespace kubex \
   -f my-values.yaml
 ```
@@ -146,7 +146,7 @@ Create an Ingress resource to route traffic to the `kubex-operator` service on p
 When a new version of Kubex is released, upgrading is seamless using Helm:
 ```bash
 helm upgrade kubex-operator oci://ghcr.io/migalsp/kubex-operator/charts/kubex-operator \
-  --version v1.1.0 \
+  --version 1.1.0 \
   --namespace kubex
 ```
 
