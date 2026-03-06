@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/migalsp/kubex-operator/compare/v1.4.2...v1.4.3) (2026-03-06)
+
+
+### Bug Fixes
+
+* **api:** resolve race condition in handleNamespaceOptimize by removing redundant cache Get after Create ([d1d6fbf](https://github.com/migalsp/kubex-operator/commit/d1d6fbf982b019ba6912cf8aa1cde8c40315c152))
+
 ## [1.4.2](https://github.com/migalsp/kubex-operator/compare/v1.4.1...v1.4.2) (2026-03-06)
 
 
