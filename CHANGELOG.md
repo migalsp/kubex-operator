@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/migalsp/kubex-operator/compare/v1.4.1...v1.4.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* Bump chart and app versions to 1.4.1. ([03d0bd3](https://github.com/migalsp/kubex-operator/commit/03d0bd33db4385a1d2c3d8ff6bed714c5f7ee711))
+
 ## [1.4.1](https://github.com/migalsp/kubex-operator/compare/v1.4.0...v1.4.1) (2026-03-06)
 
 
