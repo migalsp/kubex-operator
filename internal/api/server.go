@@ -756,6 +756,10 @@ func (s *Server) handleNamespaceOptimize(w http.ResponseWriter, r *http.Request,
 	avgMemNs := totalMemAv / float64(len(finOps.Status.History))
 
 	// 2. Get current individual usage from Metrics API
+	if s.MetricsClient == nil {
+		http.Error(w, "Metrics API is not available", http.StatusInternalServerError)
+		return
+	}
 	podMetricsList, err := s.MetricsClient.MetricsV1beta1().PodMetricses(nsName).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		http.Error(w, "Failed to get metrics: "+err.Error(), http.StatusInternalServerError)
