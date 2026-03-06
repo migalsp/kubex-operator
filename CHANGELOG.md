@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/migalsp/kubex-operator/compare/v1.4.0...v1.4.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* improve API test coverage and add metrics client availability check ([a062d8f](https://github.com/migalsp/kubex-operator/commit/a062d8ff252dedaad7c4920432c9e84ecaec632f))
+
 ## [1.4.0](https://github.com/migalsp/kubex-operator/compare/v1.3.6...v1.4.0) (2026-03-05)
 
 
