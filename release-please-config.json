@@ -4,18 +4,12 @@
       "release-type": "go",
       "extra-files": [
         {
-          "type": "helm",
+          "type": "generic",
           "path": "deploy/helm/kubex-operator/Chart.yaml"
         },
         {
-          "type": "yaml",
-          "path": "deploy/helm/kubex-operator/Chart.yaml",
-          "jsonpath": "$.appVersion"
-        },
-        {
-          "type": "yaml",
-          "path": "deploy/helm/kubex-operator/values.yaml",
-          "jsonpath": "$.image.tag"
+          "type": "generic",
+          "path": "deploy/helm/kubex-operator/values.yaml"
         },
         {
           "type": "generic",
