@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/migalsp/kubex-operator:v1.0.0
+IMG ?= ghcr.io/migalsp/kubex/kubex-operator:v1.0.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
